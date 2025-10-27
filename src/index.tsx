@@ -4,8 +4,10 @@ import { Hono } from 'hono'
 import satori from 'satori'
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
 import wasmModule from '../node_modules/@resvg/resvg-wasm/index_bg.wasm'
-import NotoSansJPRegular from '../assets/fonts/NotoSansJP-Regular.ttf'
-import NotoSerifJPBold from '../assets/fonts/NotoSerifJP-Bold.ttf'
+// @ts-ignore
+import fontSansData from '../assets/fonts/NotoSansJP-Regular.ttf'
+// @ts-ignore
+import fontSerifData from '../assets/fonts/NotoSerifJP-Bold.ttf'
 
 type Env = {
   API_KEY: string
@@ -43,24 +45,16 @@ async function templateMagazineBasic(input: Required<RenderInput>) {
   const jsx = (
     <div style={{ width, height, background: bgColor, color: textColor, display: 'flex',
       flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: 96 }}>
-      <div style={{ fontSize: 72, fontWeight: 700, fontFamily: 'Noto Serif JP' }}>{title}</div>
-      <div style={{ marginTop: 32, fontSize: 36, fontFamily: 'Noto Sans JP' }}>{subtitle || brand}</div>
+      <div style={{ display: 'flex', fontSize: 72, fontWeight: 700, fontFamily: 'Noto Serif JP' }}>{title}</div>
+      <div style={{ display: 'flex', marginTop: 32, fontSize: 36, fontFamily: 'Noto Sans JP' }}>{subtitle || brand}</div>
     </div>
   )
-  // フォントデータをArrayBufferに変換
-  const sansData = NotoSansJPRegular instanceof ArrayBuffer
-    ? NotoSansJPRegular
-    : new Uint8Array(NotoSansJPRegular as any).buffer
-  const serifData = NotoSerifJPBold instanceof ArrayBuffer
-    ? NotoSerifJPBold
-    : new Uint8Array(NotoSerifJPBold as any).buffer
-
   const svg = await satori(jsx as any, {
     width,
     height,
     fonts: [
-      { name: 'Noto Sans JP', data: sansData, weight: 400, style: 'normal' },
-      { name: 'Noto Serif JP', data: serifData, weight: 700, style: 'normal' }
+      { name: 'Noto Sans JP', data: fontSansData, weight: 400, style: 'normal' },
+      { name: 'Noto Serif JP', data: fontSerifData, weight: 700, style: 'normal' }
     ],
   })
   return svg
