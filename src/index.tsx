@@ -13,6 +13,17 @@ type Env = {
   API_KEY: string
 }
 
+// WASM初期化フラグ
+let wasmInitialized = false
+
+// WASMを初期化（一度だけ）
+async function ensureWasmInitialized() {
+  if (!wasmInitialized) {
+    await initWasm(wasmModule)
+    wasmInitialized = true
+  }
+}
+
 const app = new Hono<{ Bindings: Env }>()
 async function toDataUrl(url: string): Promise<string> {
   const res = await fetch(url)
@@ -82,7 +93,7 @@ app.post('/render', async (c) => {
   }
   const svg = await templateMagazineBasic(input)
   if (format === 'svg') return new Response(svg, { headers: { 'Content-Type': 'image/svg+xml' } })
-  await initWasm(wasmModule)
+  await ensureWasmInitialized()
   const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: width } })
   const png = resvg.render().asPng()
   return new Response(png, { headers: { 'Content-Type': 'image/png' } })
