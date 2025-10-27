@@ -1,0 +1,11 @@
+name = "ogp-worker"
+main = "src/index.tsx"
+compatibility_date = "2024-10-01"
+
+[vars]
+API_KEY = "cwe8yxq4mtc-HCZ9ebm"
+
+[[rules]]
+type = "Data"
+globs = ["**/*.ttf"]
+fallthrough = true
