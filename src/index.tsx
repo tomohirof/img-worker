@@ -23,7 +23,9 @@ interface TextElement {
   width?: number
   height?: number
   maxWidth?: number  // Maximum width for text wrapping
+  maxHeight?: number  // Maximum height for text (triggers font size adjustment)
   fontSize: number
+  minFontSize?: number  // Minimum font size when auto-adjusting (default: fontSize / 2)
   fontFamily: 'Noto Sans JP' | 'Noto Serif JP'
   color: string
   fontWeight: 400 | 700
@@ -87,17 +89,42 @@ async function renderTemplateToSvg(template: Template, data: Record<string, stri
   const jsxElements = elements.map(el => {
     const value = data[el.variable] || ''
 
+    // Calculate adjusted font size if maxHeight is specified
+    let adjustedFontSize = el.fontSize
+    if (el.maxWidth && el.maxHeight) {
+      // Estimate number of lines
+      // Rough estimation: average character width is ~0.5 * fontSize
+      const avgCharWidth = el.fontSize * 0.5
+      const charsPerLine = Math.floor(el.maxWidth / avgCharWidth)
+      const estimatedLines = Math.ceil(value.length / charsPerLine)
+
+      // Line height is typically 1.2 * fontSize
+      const lineHeight = 1.2
+      const estimatedHeight = estimatedLines * el.fontSize * lineHeight
+
+      // If estimated height exceeds maxHeight, reduce font size
+      if (estimatedHeight > el.maxHeight) {
+        const ratio = el.maxHeight / estimatedHeight
+        adjustedFontSize = Math.floor(el.fontSize * ratio)
+
+        // Don't go below minFontSize
+        const minSize = el.minFontSize || Math.floor(el.fontSize / 2)
+        adjustedFontSize = Math.max(adjustedFontSize, minSize)
+      }
+    }
+
     // Build style object with text wrapping support
     const style: any = {
       position: 'absolute',
       left: el.x,
       top: el.y,
-      fontSize: el.fontSize,
+      fontSize: adjustedFontSize,
       fontFamily: el.fontFamily,
       color: el.color,
       fontWeight: el.fontWeight,
       textAlign: 'left',  // Always use left alignment for simplicity
       display: 'flex',
+      lineHeight: 1.2,  // Standard line height
     }
 
     // Add width and wrapping if maxWidth is specified
@@ -479,7 +506,7 @@ app.get('/templates/ui', (c) => {
 
       <div class="form-group">
         <label for="templateJson">テンプレート定義（JSON）</label>
-        <textarea id="templateJson" placeholder='{\n  "width": 1200,\n  "height": 630,\n  "background": { "type": "color", "value": "#1e40ff" },\n  "elements": [\n    {\n      "id": "title",\n      "variable": "title",\n      "x": 100,\n      "y": 300,\n      "maxWidth": 1000,\n      "fontSize": 72,\n      "fontFamily": "Noto Serif JP",\n      "color": "#ffffff",\n      "fontWeight": 700,\n      "textAlign": "left"\n    },\n    {\n      "id": "category",\n      "variable": "category",\n      "x": 100,\n      "y": 200,\n      "maxWidth": 800,\n      "fontSize": 24,\n      "fontFamily": "Noto Sans JP",\n      "color": "#ffff00",\n      "fontWeight": 400,\n      "textAlign": "left"\n    }\n  ]\n}'></textarea>
+        <textarea id="templateJson" placeholder='{\n  "width": 1200,\n  "height": 630,\n  "background": { "type": "color", "value": "#1e40ff" },\n  "elements": [\n    {\n      "id": "title",\n      "variable": "title",\n      "x": 100,\n      "y": 300,\n      "maxWidth": 1000,\n      "maxHeight": 250,\n      "fontSize": 72,\n      "minFontSize": 36,\n      "fontFamily": "Noto Serif JP",\n      "color": "#ffffff",\n      "fontWeight": 700,\n      "textAlign": "left"\n    },\n    {\n      "id": "category",\n      "variable": "category",\n      "x": 100,\n      "y": 200,\n      "maxWidth": 800,\n      "maxHeight": 80,\n      "fontSize": 24,\n      "fontFamily": "Noto Sans JP",\n      "color": "#ffff00",\n      "fontWeight": 400,\n      "textAlign": "left"\n    }\n  ]\n}'></textarea>
       </div>
 
       <div class="modal-actions">
