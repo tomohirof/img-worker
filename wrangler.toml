@@ -5,6 +5,12 @@ compatibility_date = "2024-10-01"
 [vars]
 API_KEY = "cwe8yxq4mtc-HCZ9ebm"
 
+# KV Namespaces for template storage
+[[kv_namespaces]]
+binding = "TEMPLATES"
+id = "placeholder"
+preview_id = "placeholder"
+
 [[rules]]
 type = "Data"
 globs = ["**/*.ttf"]
