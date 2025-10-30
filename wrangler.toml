@@ -11,6 +11,11 @@ binding = "TEMPLATES"
 id = "placeholder"
 preview_id = "placeholder"
 
+# R2 Buckets for image storage
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "ogp-images"
+
 [[rules]]
 type = "Data"
 globs = ["**/*.ttf"]

@@ -12,6 +12,7 @@ import fontSerifData from '../assets/fonts/NotoSerifJP-Bold.ttf'
 type Env = {
   API_KEY: string
   TEMPLATES: KVNamespace
+  IMAGES: R2Bucket
 }
 
 // Template types
@@ -445,6 +446,101 @@ app.post('/render', async (c) => {
   return new Response(png, { headers: { 'Content-Type': 'image/png' } })
 })
 
+// Image Upload APIs
+
+// POST /images/upload - Upload image to R2
+app.post('/images/upload', async (c) => {
+  const unauthorized = requireApiKey(c)
+  if (unauthorized) return unauthorized
+
+  try {
+    // Parse multipart/form-data
+    const formData = await c.req.formData()
+    const file = formData.get('image') as File | null
+
+    if (!file) {
+      return c.json({ error: 'No file provided' }, 400)
+    }
+
+    // File size limit (10MB)
+    const MAX_SIZE = 10 * 1024 * 1024
+    if (file.size > MAX_SIZE) {
+      return c.json({ error: 'File too large (max 10MB)' }, 400)
+    }
+
+    // MIME type validation
+    const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml']
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return c.json({ error: 'Invalid file type. Allowed: png, jpeg, gif, webp, svg' }, 400)
+    }
+
+    // Generate unique filename
+    const fileId = crypto.randomUUID()
+    const extension = file.name.split('.').pop() || 'png'
+    const key = `uploads/${fileId}.${extension}`
+
+    // Upload to R2
+    const arrayBuffer = await file.arrayBuffer()
+    await c.env.IMAGES.put(key, arrayBuffer, {
+      httpMetadata: {
+        contentType: file.type,
+      },
+      customMetadata: {
+        originalName: file.name,
+        uploadedAt: new Date().toISOString(),
+        size: file.size.toString(),
+      }
+    })
+
+    // Return public URL
+    const url = `${new URL(c.req.url).origin}/images/${key}`
+
+    return c.json({
+      success: true,
+      fileId,
+      key,
+      url,
+      size: file.size,
+      type: file.type,
+    }, 201)
+
+  } catch (error) {
+    console.error('Upload error:', error)
+    return c.json({ error: 'Upload failed' }, 500)
+  }
+})
+
+// GET /images/:key - Get image from R2
+app.get('/images/*', async (c) => {
+  const key = c.req.path.replace('/images/', '')
+
+  const object = await c.env.IMAGES.get(key)
+
+  if (!object) {
+    return c.json({ error: 'Image not found' }, 404)
+  }
+
+  return new Response(object.body, {
+    headers: {
+      'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'ETag': object.httpEtag,
+    }
+  })
+})
+
+// DELETE /images/:key - Delete image from R2
+app.delete('/images/*', async (c) => {
+  const unauthorized = requireApiKey(c)
+  if (unauthorized) return unauthorized
+
+  const key = c.req.path.replace('/images/', '')
+
+  await c.env.IMAGES.delete(key)
+
+  return c.json({ success: true })
+})
+
 // Template Management APIs
 
 // GET /templates/ui - Template management UI
@@ -721,6 +817,26 @@ app.get('/templates/editor', (c) => {
 
     .bg-preview { width: 100%; height: 100px; border: 1px solid #ddd; border-radius: 4px; margin-top: 5px; background-size: cover; background-position: center; }
 
+    .upload-area {
+      width: 100%;
+      min-height: 150px;
+      border: 2px dashed #007bff;
+      border-radius: 8px;
+      margin-top: 10px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: #f8f9fa;
+    }
+    .upload-area:hover { background: #e9ecef; border-color: #0056b3; }
+    .upload-area.dragover { background: #cfe2ff; border-color: #0056b3; border-style: solid; }
+    .upload-area .icon { font-size: 48px; margin-bottom: 10px; color: #007bff; }
+    .upload-area .text { font-size: 14px; color: #666; margin-bottom: 5px; }
+    .upload-area .subtext { font-size: 12px; color: #999; }
+    .upload-area .preview-image { width: 100%; max-height: 200px; object-fit: contain; margin-top: 10px; border-radius: 4px; }
+    .upload-area.uploading { opacity: 0.6; pointer-events: none; }
+
     button.danger { background: #dc3545; }
     button.danger:hover { background: #c82333; }
   </style>
@@ -809,10 +925,13 @@ app.get('/templates/editor', (c) => {
       if (background.type === 'color') {
         canvas.style.background = background.value;
         canvas.style.backgroundImage = 'none';
-      } else {
+      } else if (background.type === 'image' || background.type === 'upload') {
         canvas.style.backgroundImage = \`url(\${background.value})\`;
         canvas.style.backgroundSize = 'cover';
         canvas.style.backgroundPosition = 'center';
+      } else {
+        canvas.style.background = '#ffffff';
+        canvas.style.backgroundImage = 'none';
       }
 
       // Clear and render elements
@@ -1005,17 +1124,33 @@ app.get('/templates/editor', (c) => {
           <select id="bgType" onchange="updateBackgroundType(this.value)">
             <option value="color" \${background.type === 'color' ? 'selected' : ''}>カラー</option>
             <option value="image" \${background.type === 'image' ? 'selected' : ''}>画像URL</option>
+            <option value="upload" \${background.type === 'upload' ? 'selected' : ''}>画像アップロード</option>
           </select>
         </div>
 
         <div class="form-group" id="bgValueGroup">
           \${background.type === 'color' ?
             \`<label>背景色</label><input type="color" value="\${background.value}" onchange="updateTemplateProperty('background', {type: 'color', value: this.value})">\` :
-            \`<label>画像URL</label><input type="text" value="\${background.value}" placeholder="https://example.com/image.jpg" onchange="updateTemplateProperty('background', {type: 'image', value: this.value})">\`
+            background.type === 'image' ?
+            \`<label>画像URL</label><input type="text" value="\${background.value}" placeholder="https://example.com/image.jpg" onchange="updateTemplateProperty('background', {type: 'image', value: this.value})">
+             \${background.value ? \`<div class="bg-preview" style="background-image: url('\${background.value}')"></div>\` : ''}\` :
+            \`<label>画像をアップロード</label>
+             <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+               \${background.value ?
+                 \`<img src="\${background.value}" class="preview-image" alt="プレビュー" />
+                  <div class="text">クリックまたはドラッグ&ドロップで画像を変更</div>\` :
+                 \`<div class="icon">📤</div>
+                  <div class="text">クリックまたはドラッグ&ドロップで画像をアップロード</div>
+                  <div class="subtext">PNG, JPEG, GIF, WebP, SVG (最大10MB)</div>\`
+               }
+             </div>
+             <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleBackgroundUpload(event)" />\`
           }
-          \${background.type === 'image' ? \`<div class="bg-preview" style="background-image: url('\${background.value}')"></div>\` : ''}
         </div>
       \`;
+
+      // ドラッグ&ドロップイベントハンドラーを設定
+      setupUploadAreaHandlers();
     }
 
     function showElementProperties() {
@@ -1102,7 +1237,10 @@ app.get('/templates/editor', (c) => {
     }
 
     function updateBackgroundType(type) {
-      const defaultValue = type === 'color' ? '#1e40ff' : '';
+      let defaultValue = '';
+      if (type === 'color') defaultValue = '#1e40ff';
+      else if (type === 'upload') defaultValue = templateState.background.value || '';
+
       templateState.background = { type, value: defaultValue };
       showTemplateProperties();
       renderCanvas();
@@ -1112,6 +1250,86 @@ app.get('/templates/editor', (c) => {
       templateState.width = parseInt(document.getElementById('templateWidth').value);
       templateState.height = parseInt(document.getElementById('templateHeight').value);
       renderCanvas();
+    }
+
+    async function handleBackgroundUpload(event) {
+      const file = event.target ? event.target.files[0] : event.dataTransfer?.files[0];
+      if (!file) return;
+
+      // ファイルタイプとサイズのバリデーション
+      const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('対応していない画像形式です。PNG, JPEG, GIF, WebP, SVGのみアップロード可能です。');
+        return;
+      }
+
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        alert('ファイルサイズが大きすぎます。10MB以下のファイルをアップロードしてください。');
+        return;
+      }
+
+      // アップロード中の表示
+      const uploadArea = document.getElementById('uploadArea');
+      if (uploadArea) {
+        uploadArea.classList.add('uploading');
+        uploadArea.innerHTML = '<div class="text">アップロード中...</div>';
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await fetch('/images/upload', {
+          method: 'POST',
+          headers: {
+            'x-api-key': API_KEY
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error('アップロードに失敗しました');
+        }
+
+        const result = await response.json();
+
+        // 背景画像のURLを更新
+        templateState.background = { type: 'upload', value: result.url };
+        showTemplateProperties();
+        renderCanvas();
+      } catch (error) {
+        console.error('Upload error:', error);
+        alert('画像のアップロードに失敗しました。もう一度お試しください。');
+        showTemplateProperties();
+      }
+    }
+
+    function setupUploadAreaHandlers() {
+      const uploadArea = document.getElementById('uploadArea');
+      if (!uploadArea) return;
+
+      // ドラッグオーバーイベント
+      uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadArea.classList.add('dragover');
+      });
+
+      // ドラッグリーブイベント
+      uploadArea.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadArea.classList.remove('dragover');
+      });
+
+      // ドロップイベント
+      uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadArea.classList.remove('dragover');
+        handleBackgroundUpload(e);
+      });
     }
 
     function updateElementProperty(key, value) {
