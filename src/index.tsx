@@ -22,6 +22,7 @@ interface TextElement {
   y: number
   width?: number
   height?: number
+  maxWidth?: number  // Maximum width for text wrapping
   fontSize: number
   fontFamily: 'Noto Sans JP' | 'Noto Serif JP'
   color: string
@@ -85,21 +86,29 @@ async function renderTemplateToSvg(template: Template, data: Record<string, stri
   // Create JSX elements from template definition
   const jsxElements = elements.map(el => {
     const value = data[el.variable] || ''
+
+    // Build style object with text wrapping support
+    const style: any = {
+      position: 'absolute',
+      left: el.x,
+      top: el.y,
+      fontSize: el.fontSize,
+      fontFamily: el.fontFamily,
+      color: el.color,
+      fontWeight: el.fontWeight,
+      textAlign: 'left',  // Always use left alignment for simplicity
+      display: 'flex',
+    }
+
+    // Add width and wrapping if maxWidth is specified
+    if (el.maxWidth) {
+      style.width = el.maxWidth
+      style.flexWrap = 'wrap'
+      style.wordBreak = 'break-word'  // Allow breaking long words
+    }
+
     return (
-      <div
-        key={el.id}
-        style={{
-          position: 'absolute',
-          left: el.x,
-          top: el.y,
-          fontSize: el.fontSize,
-          fontFamily: el.fontFamily,
-          color: el.color,
-          fontWeight: el.fontWeight,
-          textAlign: el.textAlign,
-          display: 'flex',
-        }}
-      >
+      <div key={el.id} style={style}>
         {value}
       </div>
     )
@@ -470,7 +479,7 @@ app.get('/templates/ui', (c) => {
 
       <div class="form-group">
         <label for="templateJson">テンプレート定義（JSON）</label>
-        <textarea id="templateJson" placeholder='{\n  "width": 1200,\n  "height": 630,\n  "background": { "type": "color", "value": "#1e40ff" },\n  "elements": [\n    {\n      "id": "title",\n      "variable": "title",\n      "x": 100,\n      "y": 300,\n      "fontSize": 72,\n      "fontFamily": "Noto Serif JP",\n      "color": "#ffffff",\n      "fontWeight": 700,\n      "textAlign": "center"\n    }\n  ]\n}'></textarea>
+        <textarea id="templateJson" placeholder='{\n  "width": 1200,\n  "height": 630,\n  "background": { "type": "color", "value": "#1e40ff" },\n  "elements": [\n    {\n      "id": "title",\n      "variable": "title",\n      "x": 100,\n      "y": 300,\n      "maxWidth": 1000,\n      "fontSize": 72,\n      "fontFamily": "Noto Serif JP",\n      "color": "#ffffff",\n      "fontWeight": 700,\n      "textAlign": "left"\n    },\n    {\n      "id": "category",\n      "variable": "category",\n      "x": 100,\n      "y": 200,\n      "maxWidth": 800,\n      "fontSize": 24,\n      "fontFamily": "Noto Sans JP",\n      "color": "#ffff00",\n      "fontWeight": 400,\n      "textAlign": "left"\n    }\n  ]\n}'></textarea>
       </div>
 
       <div class="modal-actions">
