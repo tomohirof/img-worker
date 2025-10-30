@@ -426,6 +426,27 @@ app.post('/render', async (c) => {
     // Render using template
     svg = await renderTemplateToSvg(template, body.data as Record<string, string>)
   }
+  // Check if using template name
+  else if (body.template && typeof body.template === 'string' && body.template !== 'magazine-basic') {
+    // Search for template by name
+    const keys = await c.env.TEMPLATES.list({ prefix: 'template:' })
+    let foundTemplate: Template | null = null
+
+    for (const key of keys.keys) {
+      const template = await c.env.TEMPLATES.get(key.name, 'json') as Template
+      if (template && template.name === body.template) {
+        foundTemplate = template
+        break
+      }
+    }
+
+    if (!foundTemplate) {
+      return c.json({ error: `Template '${body.template}' not found` }, 404)
+    }
+
+    // Render using template
+    svg = await renderTemplateToSvg(foundTemplate, body.data as Record<string, string>)
+  }
   // Use legacy magazine-basic template
   else {
     const width = Math.max(200, Math.min(4096, body.width ?? 1200))
