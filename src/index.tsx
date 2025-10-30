@@ -837,6 +837,10 @@ app.get('/templates/editor', (c) => {
           div.style.width = element.maxWidth + 'px';
         }
 
+        if (element.maxHeight) {
+          div.style.height = element.maxHeight + 'px';
+        }
+
         // Add resize handle
         const handle = document.createElement('div');
         handle.className = 'resize-handle';
@@ -911,7 +915,9 @@ app.get('/templates/editor', (c) => {
         type: 'resize',
         elementId,
         startX: e.clientX,
-        initialWidth: element.maxWidth || 200
+        startY: e.clientY,
+        initialWidth: element.maxWidth || 200,
+        initialHeight: element.maxHeight || 100
       };
 
       document.addEventListener('pointermove', onDragMove);
@@ -931,7 +937,9 @@ app.get('/templates/editor', (c) => {
         element.y = Math.max(0, Math.min(templateState.height - 20, dragState.initialY + dy));
       } else if (dragState.type === 'resize') {
         const dx = e.clientX - dragState.startX;
+        const dy = e.clientY - dragState.startY;
         element.maxWidth = Math.max(50, dragState.initialWidth + dx);
+        element.maxHeight = Math.max(20, dragState.initialHeight + dy);
       }
 
       renderCanvas();
