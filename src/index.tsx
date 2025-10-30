@@ -112,7 +112,7 @@ app.get('/form', (c) => {
   <form id="renderForm">
     <div class="form-group">
       <label for="apiKey">APIキー *</label>
-      <input type="password" id="apiKey" required placeholder="APIキーを入力してください">
+      <input type="password" id="apiKey" required placeholder="APIキーを入力してください" value="cwe8yxq4mtc-HCZ9ebm">
     </div>
 
     <div class="form-group">
@@ -247,7 +247,8 @@ app.get('/form', (c) => {
         });
 
         if (!response.ok) {
-          throw new Error(\`エラー: \${response.status} \${response.statusText}\`);
+          const errorText = await response.text();
+          throw new Error(\`エラー: \${response.status} \${response.statusText} - \${errorText}\`);
         }
 
         const blob = await response.blob();
@@ -262,13 +263,9 @@ app.get('/form', (c) => {
         successMsg.textContent = '画像が正常に生成されました！';
         successMsg.style.display = 'block';
 
-        // フォームをリセット（APIキーは保持）
-        const savedApiKey = apiKey;
-        form.reset();
-        document.getElementById('apiKey').value = savedApiKey;
-
       } catch (error) {
-        errorMsg.textContent = error.message;
+        console.error('Error:', error);
+        errorMsg.textContent = error.message || 'ネットワークエラーが発生しました。開発サーバーが起動しているか確認してください。';
         errorMsg.style.display = 'block';
         preview.innerHTML = '<p style="color: #999;">生成された画像がここに表示されます</p>';
       } finally {
