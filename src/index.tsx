@@ -108,7 +108,7 @@ const app = new Hono<{ Bindings: Env }>()
 
 // CORS設定
 app.use('/*', cors({
-  origin: ['http://localhost:3000', 'https://img-worker-templates.pages.dev'],
+  origin: ['http://localhost:3000', 'http://localhost:3002', 'https://img-worker-templates.pages.dev'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'x-api-key'],
   exposeHeaders: ['Content-Length'],
