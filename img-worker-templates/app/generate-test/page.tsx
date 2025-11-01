@@ -13,6 +13,7 @@ export default function GenerateTestPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewType, setPreviewType] = useState<'sample' | 'custom' | null>(null);
 
   // フォームデータ（テンプレート変数用）
   const [formData, setFormData] = useState<Record<string, string>>({});
@@ -35,9 +36,10 @@ export default function GenerateTestPage() {
     }
   };
 
-  const handleTemplateSelect = (template: Template) => {
+  const handleTemplateSelect = async (template: Template) => {
     setSelectedTemplate(template);
     setPreviewUrl(null);
+    setPreviewType(null);
 
     // テンプレートの変数に応じてフォームデータを初期化
     const initialData: Record<string, string> = {};
@@ -45,6 +47,24 @@ export default function GenerateTestPage() {
       initialData[el.variable] = `サンプル${el.variable}`;
     });
     setFormData(initialData);
+
+    // テンプレートのサンプルプレビューを自動生成
+    try {
+      setGenerating(true);
+      const blob = await api.renderImage({
+        template,
+        format: 'png',
+        data: initialData,
+      });
+      const url = URL.createObjectURL(blob);
+      setPreviewUrl(url);
+      setPreviewType('sample');
+    } catch (error) {
+      console.error('Preview generation error:', error);
+      // エラーは無視してプレビューなしで続行
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -65,6 +85,7 @@ export default function GenerateTestPage() {
       // プレビュー用のURL生成
       const url = URL.createObjectURL(blob);
       setPreviewUrl(url);
+      setPreviewType('custom');
     } catch (error) {
       console.error('Generation error:', error);
       alert('画像生成に失敗しました: ' + (error as Error).message);
@@ -205,7 +226,14 @@ export default function GenerateTestPage() {
 
         {/* Right Panel - Preview */}
         <div className="rounded-lg border bg-card p-6">
-          <h2 className="text-lg font-semibold mb-4">プレビュー</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">プレビュー</h2>
+            {previewUrl && previewType && (
+              <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                {previewType === 'sample' ? 'テンプレートのプレビュー' : '生成画像'}
+              </span>
+            )}
+          </div>
 
           <div className="border-2 border-dashed rounded-lg min-h-[400px] flex items-center justify-center bg-gray-50">
             {previewUrl ? (
@@ -216,7 +244,7 @@ export default function GenerateTestPage() {
               />
             ) : (
               <p className="text-muted-foreground text-center px-4">
-                生成された画像がここに表示されます
+                テンプレートを選択すると、プレビューが表示されます
               </p>
             )}
           </div>
