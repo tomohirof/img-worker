@@ -135,9 +135,9 @@ export function Canvas({
   };
 
   return (
-    <div className="flex-1 bg-gray-100 overflow-auto p-10">
+    <div className="flex-1 bg-gray-50 overflow-auto p-6">
       <div
-        className="relative mx-auto shadow-lg cursor-default"
+        className="relative mx-auto shadow-xl cursor-default"
         style={{
           width: `${width}px`,
           height: `${height}px`,

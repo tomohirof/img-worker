@@ -2,10 +2,13 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Canvas } from '@/components/editor/Canvas';
 import { PropertiesPanel } from '@/components/editor/PropertiesPanel';
-import { Toolbar } from '@/components/editor/Toolbar';
+import { Button } from '@/components/ui/Button';
 import { api, Template, TextElement } from '@/lib/api';
+import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 export default function NewTemplatePage() {
   const router = useRouter();
@@ -181,37 +184,67 @@ export default function NewTemplatePage() {
 
   if (isLoading) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-lg">読み込み中...</div>
-      </div>
+      <AdminLayout>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-lg">読み込み中...</div>
+        </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
-      <Toolbar
-        templateName={template.name}
-        onAddTextElement={handleAddTextElement}
-        onPreview={handlePreview}
-        onSave={handleSave}
-        isSaving={isSaving}
-      />
-      <div className="flex-1 flex overflow-hidden">
-        <Canvas
-          template={template}
-          selectedElementId={selectedElementId}
-          onSelectElement={setSelectedElementId}
-          onUpdateElement={handleUpdateElement}
-        />
-        <PropertiesPanel
-          template={template}
-          selectedElementId={selectedElementId}
-          onUpdateTemplate={handleUpdateTemplate}
-          onUpdateElement={handleUpdateElement}
-          onDeleteElement={handleDeleteElement}
-          onUploadBackground={handleUploadBackground}
-        />
+    <AdminLayout>
+      {/* Page Header */}
+      <div className="mb-6">
+        <Link
+          href="/templates"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          テンプレート一覧に戻る
+        </Link>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {templateId ? 'テンプレートの編集' : 'テンプレートの新規作成'}
+            </h1>
+            {template.name && (
+              <p className="text-muted-foreground mt-1">{template.name}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={handleAddTextElement}>
+              テキスト要素を追加
+            </Button>
+            <Button variant="outline" onClick={handlePreview}>
+              プレビュー
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? '保存中...' : '保存'}
+            </Button>
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* Editor Area */}
+      <div className="rounded-lg border bg-card shadow-sm overflow-hidden" style={{ height: 'calc(100vh - 280px)' }}>
+        <div className="flex h-full">
+          <Canvas
+            template={template}
+            selectedElementId={selectedElementId}
+            onSelectElement={setSelectedElementId}
+            onUpdateElement={handleUpdateElement}
+          />
+          <PropertiesPanel
+            template={template}
+            selectedElementId={selectedElementId}
+            onUpdateTemplate={handleUpdateTemplate}
+            onUpdateElement={handleUpdateElement}
+            onDeleteElement={handleDeleteElement}
+            onUploadBackground={handleUploadBackground}
+          />
+        </div>
+      </div>
+    </AdminLayout>
   );
 }
