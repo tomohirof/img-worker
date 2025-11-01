@@ -60,79 +60,94 @@ export default function テンプレートListPage() {
         </div>
       </div>
 
-      {/* Table Card */}
-      <div className="rounded-lg border bg-card shadow-sm">
-        <div className="border-b p-4">
-          <h2 className="text-lg font-semibold">テンプレート一覧</h2>
+      {error && (
+        <div className="rounded-lg bg-red-50 text-red-600 p-4 mb-6">
+          {error}
         </div>
+      )}
 
-        {error && (
-          <div className="p-4 bg-red-50 text-red-600 border-b">
-            {error}
-          </div>
-        )}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : templates.length === 0 ? (
+        <div className="rounded-lg border bg-card shadow-sm py-12 text-center">
+          <p className="text-muted-foreground">テンプレートがありません</p>
+          <Link href="/templates/new" className="mt-4 inline-block">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              新規作成
+            </Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {templates.map((template) => (
+            <div
+              key={template.id}
+              className="rounded-lg border bg-card shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+            >
+              {/* Thumbnail */}
+              <div className="aspect-[1200/630] bg-gray-100 relative">
+                {template.thumbnailUrl ? (
+                  <img
+                    src={template.thumbnailUrl}
+                    alt={template.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    <span className="text-sm">プレビューなし</span>
+                  </div>
+                )}
+              </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : templates.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground">
-            <p>テンプレートがありません</p>
-            <Link href="/templates/new" className="mt-4 inline-block">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                新規作成
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">テンプレート名</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">幅 (px)</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">高さ (px)</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">背景タイプ</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">操作</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {templates.map((template) => (
-                  <tr key={template.id} className="hover:bg-muted/50 transition-colors">
-                    <td className="px-4 py-4 text-sm font-medium">{template.name}</td>
-                    <td className="px-4 py-4 text-sm">{template.width}</td>
-                    <td className="px-4 py-4 text-sm">{template.height}</td>
-                    <td className="px-4 py-4">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        template.background.type === 'color' ? 'bg-blue-100 text-blue-800' :
-                        template.background.type === 'image' ? 'bg-green-100 text-green-800' :
-                        'bg-purple-100 text-purple-800'
-                      }`}>
-                        {template.background.type === 'color' ? 'カラー' :
-                         template.background.type === 'image' ? '画像URL' : 'アップロード'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link href={`/templates/${template.id}/edit`}>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(template.id)}>
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              {/* Content */}
+              <div className="p-4">
+                <h3 className="font-semibold text-lg mb-2 truncate">{template.name}</h3>
+
+                <div className="space-y-1 text-sm text-muted-foreground mb-3">
+                  <div className="flex items-center justify-between">
+                    <span>サイズ:</span>
+                    <span className="font-medium text-foreground">
+                      {template.width} × {template.height}px
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>背景:</span>
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                      template.background.type === 'color' ? 'bg-blue-100 text-blue-800' :
+                      template.background.type === 'image' ? 'bg-green-100 text-green-800' :
+                      'bg-purple-100 text-purple-800'
+                    }`}>
+                      {template.background.type === 'color' ? 'カラー' :
+                       template.background.type === 'image' ? '画像URL' : 'アップロード'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2">
+                  <Link href={`/templates/${template.id}/edit`} className="flex-1">
+                    <Button variant="outline" size="sm" className="w-full">
+                      <Edit className="h-4 w-4 mr-2" />
+                      編集
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDelete(template.id)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </AdminLayout>
   );
 }

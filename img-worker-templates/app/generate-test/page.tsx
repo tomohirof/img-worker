@@ -48,19 +48,31 @@ export default function GenerateTestPage() {
     });
     setFormData(initialData);
 
-    // テンプレートのサンプルプレビューを自動生成
+    // サムネイルがあればそれを表示
+    if (template.thumbnailUrl) {
+      setPreviewUrl(template.thumbnailUrl);
+      setPreviewType('sample');
+      return;
+    }
+
+    // サムネイルがない場合は生成してサムネイルとして保存
     try {
       setGenerating(true);
-      const blob = await api.renderImage({
-        template,
-        format: 'png',
-        data: initialData,
-      });
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
+
+      // Generate thumbnail and save it
+      const { thumbnailUrl } = await api.generateThumbnail(template);
+
+      // Update template with thumbnail URL
+      await api.updateTemplate(template.id, { thumbnailUrl });
+
+      // Display the thumbnail
+      setPreviewUrl(thumbnailUrl);
       setPreviewType('sample');
+
+      // Reload templates to get updated data
+      await loadTemplates();
     } catch (error) {
-      console.error('Preview generation error:', error);
+      console.error('Thumbnail generation error:', error);
       // エラーは無視してプレビューなしで続行
     } finally {
       setGenerating(false);

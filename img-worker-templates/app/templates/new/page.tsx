@@ -160,17 +160,27 @@ export default function NewTemplatePage() {
 
       setIsSaving(true);
 
-      // Remove id, createdAt, updatedAt from payload
-      const { id, createdAt, updatedAt, ...payload } = template;
+      // Remove id, createdAt, updatedAt, thumbnailUrl from payload
+      const { id, createdAt, updatedAt, thumbnailUrl, ...payload } = template;
 
+      let savedTemplate: typeof template;
       if (templateId) {
         // Update existing template
-        await api.updateTemplate(templateId, payload);
-        alert('テンプレートを更新しました！');
+        savedTemplate = await api.updateTemplate(templateId, payload);
       } else {
         // Create new template
-        await api.createTemplate(payload);
-        alert('テンプレートを作成しました！');
+        savedTemplate = await api.createTemplate(payload);
+      }
+
+      // Generate thumbnail
+      try {
+        const { thumbnailUrl: newThumbnailUrl } = await api.generateThumbnail(savedTemplate);
+        // Update template with thumbnail URL
+        await api.updateTemplate(savedTemplate.id, { thumbnailUrl: newThumbnailUrl });
+        alert('テンプレートとサムネイルを保存しました！');
+      } catch (thumbnailError) {
+        console.error('Thumbnail generation error:', thumbnailError);
+        alert('テンプレートを保存しましたが、サムネイル生成に失敗しました');
       }
 
       router.push('/templates');

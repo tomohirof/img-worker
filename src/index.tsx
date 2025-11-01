@@ -40,6 +40,7 @@ interface Template {
     value: string  // color code or image URL
   }
   elements: TextElement[]
+  thumbnailUrl?: string  // サムネイル画像のURL
   createdAt: string
   updatedAt: string
 }
@@ -1582,6 +1583,52 @@ app.put('/templates/:id', async (c) => {
   await c.env.TEMPLATES.put(`template:${id}`, JSON.stringify(updated))
 
   return c.json(updated)
+})
+
+// POST /templates/thumbnail - Generate thumbnail for a template
+app.post('/templates/thumbnail', async (c) => {
+  const unauthorized = requireApiKey(c)
+  if (unauthorized) return unauthorized
+
+  const body = await c.req.json() as { template: Template }
+  const template = body.template
+
+  if (!template || !template.id) {
+    return c.json({ error: 'Template with ID is required' }, 400)
+  }
+
+  try {
+    // Generate sample data
+    const sampleData: Record<string, string> = {}
+    template.elements.forEach((el) => {
+      sampleData[el.variable] = `サンプル${el.variable}`
+    })
+
+    // Render to SVG
+    const svg = await renderTemplateToSvg(template, sampleData)
+
+    // Convert to PNG
+    await ensureWasmInitialized()
+    const resvg = new Resvg(svg)
+    const png = resvg.render().asPng()
+
+    // Save to R2
+    const thumbnailKey = `template-thumbnails/${template.id}.png`
+    await c.env.IMAGES.put(thumbnailKey, png, {
+      httpMetadata: {
+        contentType: 'image/png',
+      },
+    })
+
+    // Generate URL
+    const url = new URL(c.req.url)
+    const thumbnailUrl = `${url.protocol}//${url.host}/images/${thumbnailKey}`
+
+    return c.json({ thumbnailUrl })
+  } catch (error) {
+    console.error('Thumbnail generation error:', error)
+    return c.json({ error: 'Failed to generate thumbnail' }, 500)
+  }
 })
 
 // DELETE /templates/:id - Delete a template

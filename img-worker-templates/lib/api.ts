@@ -30,6 +30,7 @@ export interface Template {
     value: string;
   };
   elements: TextElement[];
+  thumbnailUrl?: string;  // サムネイル画像のURL
   createdAt: string;
   updatedAt: string;
 }
@@ -96,6 +97,14 @@ class APIClient {
   async deleteTemplate(id: string): Promise<{ success: boolean }> {
     return this.request<{ success: boolean }>(`/templates/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  // Generate thumbnail for a template
+  async generateThumbnail(template: Template): Promise<{ thumbnailUrl: string }> {
+    return this.request<{ thumbnailUrl: string }>('/templates/thumbnail', {
+      method: 'POST',
+      body: JSON.stringify({ template }),
     });
   }
 
