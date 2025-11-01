@@ -8,8 +8,8 @@ API_KEY = "cwe8yxq4mtc-HCZ9ebm"
 # KV Namespaces for template storage
 [[kv_namespaces]]
 binding = "TEMPLATES"
-id = "placeholder"
-preview_id = "placeholder"
+id = "f2a352ab76304b9997e128ee855dd9d2"
+preview_id = "a299b47dfff845059053c95f090d605c"
 
 # R2 Buckets for image storage
 [[r2_buckets]]
