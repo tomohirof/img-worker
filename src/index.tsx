@@ -1,6 +1,7 @@
 /* Cloudflare Workers + Hono + Satori + resvg-wasm */
 import React from 'react'
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import satori from 'satori'
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
 import wasmModule from '../node_modules/@resvg/resvg-wasm/index_bg.wasm'
@@ -104,6 +105,16 @@ async function ensureFontsLoaded() {
 }
 
 const app = new Hono<{ Bindings: Env }>()
+
+// CORS設定
+app.use('/*', cors({
+  origin: ['http://localhost:3000', 'https://img-worker-templates.pages.dev'],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'x-api-key'],
+  exposeHeaders: ['Content-Length'],
+  maxAge: 600,
+  credentials: true,
+}))
 async function toDataUrl(url: string): Promise<string> {
   const res = await fetch(url)
   if (!res.ok) throw new Error('failed to fetch image')
