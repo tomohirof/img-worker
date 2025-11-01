@@ -4,10 +4,6 @@ import { Hono } from 'hono'
 import satori from 'satori'
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
 import wasmModule from '../node_modules/@resvg/resvg-wasm/index_bg.wasm'
-// @ts-ignore
-import fontSansData from '../assets/fonts/NotoSansJP-Regular.ttf'
-// @ts-ignore
-import fontSerifData from '../assets/fonts/NotoSerifJP-Bold.ttf'
 
 type Env = {
   API_KEY: string
@@ -55,6 +51,55 @@ async function ensureWasmInitialized() {
   if (!wasmInitialized) {
     await initWasm(wasmModule)
     wasmInitialized = true
+  }
+}
+
+// フォントキャッシュ
+let fontSansData: ArrayBuffer | null = null
+let fontSerifData: ArrayBuffer | null = null
+
+// Google Fonts APIからフォントを読み込む
+async function loadFont(family: string, weight: number): Promise<ArrayBuffer> {
+  // Google Fonts CSS APIを使ってフォントURLを取得
+  const familyParam = family.replace(/ /g, '+')
+  const cssUrl = `https://fonts.googleapis.com/css2?family=${familyParam}:wght@${weight}&display=swap`
+
+  const cssResponse = await fetch(cssUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
+  })
+
+  if (!cssResponse.ok) {
+    throw new Error(`Failed to fetch font CSS for ${family}`)
+  }
+
+  const css = await cssResponse.text()
+
+  // CSSからフォントファイルのURLを抽出
+  const urlMatch = css.match(/url\(([^)]+)\)/)
+  if (!urlMatch) {
+    throw new Error(`Failed to extract font URL from CSS for ${family}`)
+  }
+
+  const fontUrl = urlMatch[1]
+
+  // フォントファイルをダウンロード
+  const fontResponse = await fetch(fontUrl)
+  if (!fontResponse.ok) {
+    throw new Error(`Failed to fetch font file for ${family}`)
+  }
+
+  return await fontResponse.arrayBuffer()
+}
+
+// フォントを初期化（一度だけ読み込み）
+async function ensureFontsLoaded() {
+  if (!fontSansData) {
+    fontSansData = await loadFont('Noto Sans JP', 400)
+  }
+  if (!fontSerifData) {
+    fontSerifData = await loadFont('Noto Serif JP', 700)
   }
 }
 
@@ -156,12 +201,15 @@ async function renderTemplateToSvg(template: Template, data: Record<string, stri
     </div>
   )
 
+  // フォントを読み込み
+  await ensureFontsLoaded()
+
   const svg = await satori(jsx as any, {
     width,
     height,
     fonts: [
-      { name: 'Noto Sans JP', data: fontSansData, weight: 400, style: 'normal' },
-      { name: 'Noto Serif JP', data: fontSerifData, weight: 700, style: 'normal' }
+      { name: 'Noto Sans JP', data: fontSansData!, weight: 400, style: 'normal' },
+      { name: 'Noto Serif JP', data: fontSerifData!, weight: 700, style: 'normal' }
     ],
   })
 
@@ -181,12 +229,15 @@ async function templateMagazineBasic(input: Required<RenderInput>) {
       <div style={{ display: 'flex', marginTop: 32, fontSize: 36, fontFamily: 'Noto Sans JP' }}>{subtitle || brand}</div>
     </div>
   )
+  // フォントを読み込み
+  await ensureFontsLoaded()
+
   const svg = await satori(jsx as any, {
     width,
     height,
     fonts: [
-      { name: 'Noto Sans JP', data: fontSansData, weight: 400, style: 'normal' },
-      { name: 'Noto Serif JP', data: fontSerifData, weight: 700, style: 'normal' }
+      { name: 'Noto Sans JP', data: fontSansData!, weight: 400, style: 'normal' },
+      { name: 'Noto Serif JP', data: fontSerifData!, weight: 700, style: 'normal' }
     ],
   })
   return svg

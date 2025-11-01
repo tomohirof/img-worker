@@ -15,8 +15,3 @@ preview_id = "a299b47dfff845059053c95f090d605c"
 [[r2_buckets]]
 binding = "IMAGES"
 bucket_name = "ogp-images"
-
-[[rules]]
-type = "Data"
-globs = ["**/*.ttf"]
-fallthrough = true
