@@ -4,3 +4,4 @@ test-output.*
 test.png
 *.log
 .playwright-mcp/
+.dev.vars

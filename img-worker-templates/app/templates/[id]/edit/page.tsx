@@ -1,19 +1,12 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+export default async function EditTemplatePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
 
-export default function EditTemplatePage({ params }: { params: { id: string } }) {
-  const router = useRouter();
-
-  useEffect(() => {
-    // Redirect to visual editor with template ID
-    router.push(`/templates/new?id=${params.id}`);
-  }, [params.id, router]);
-
-  return (
-    <div className="h-screen flex items-center justify-center">
-      <div className="text-lg">リダイレクト中...</div>
-    </div>
-  );
+  // Redirect to visual editor with template ID
+  redirect(`/templates/new?id=${id}`);
 }

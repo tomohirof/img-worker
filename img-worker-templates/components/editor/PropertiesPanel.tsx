@@ -330,7 +330,7 @@ export function PropertiesPanel({
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             value={selectedElement.fontFamily}
             onChange={(e) =>
-              onUpdateElement(selectedElement.id, { fontFamily: e.target.value })
+              onUpdateElement(selectedElement.id, { fontFamily: e.target.value as "Noto Sans JP" | "Noto Serif JP" })
             }
           >
             <option value="Noto Sans JP">Noto Sans JP</option>
@@ -347,7 +347,7 @@ export function PropertiesPanel({
             value={selectedElement.fontWeight}
             onChange={(e) =>
               onUpdateElement(selectedElement.id, {
-                fontWeight: parseInt(e.target.value),
+                fontWeight: parseInt(e.target.value) as 400 | 700,
               })
             }
           >
