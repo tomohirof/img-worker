@@ -9,10 +9,25 @@ export function Header() {
   const [showDropdown, setShowDropdown] = useState(false);
   const router = useRouter();
 
-  const handleLogout = () => {
-    // TODO: ログアウト処理を実装
-    console.log('Logout');
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/logout`,
+        {
+          method: 'POST',
+          credentials: 'include',
+        }
+      );
+
+      if (response.ok) {
+        // ログアウト成功、ログインページにリダイレクト
+        router.push('/login');
+      } else {
+        console.error('Logout failed');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
