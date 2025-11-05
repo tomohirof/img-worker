@@ -108,7 +108,21 @@ const app = new Hono<{ Bindings: Env }>()
 
 // CORS設定
 app.use('/*', cors({
-  origin: ['http://localhost:3000', 'http://localhost:3002', 'https://img-worker-templates.pages.dev'],
+  origin: (origin) => {
+    // ローカル開発環境
+    if (origin === 'http://localhost:3000' || origin === 'http://localhost:3002') {
+      return origin;
+    }
+
+    // Cloudflare Pages（本番とプレビュー）
+    if (origin && (origin.endsWith('.img-worker-templates.pages.dev') ||
+        origin === 'https://img-worker-templates.pages.dev')) {
+      return origin;
+    }
+
+    // 許可されていないoriginの場合
+    return null;
+  },
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'x-api-key'],
   exposeHeaders: ['Content-Length'],

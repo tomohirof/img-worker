@@ -1,7 +1,8 @@
 // API Client for img-worker
+import { API_CONFIG } from './config';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ogp-worker.tomohirof.workers.dev';
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'cwe8yxq4mtc-HCZ9ebm';
+const API_BASE_URL = API_CONFIG.BASE_URL;
+const API_KEY = API_CONFIG.API_KEY;
 
 export interface TextElement {
   id: string;

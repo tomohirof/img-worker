@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import { cors } from 'hono/cors';
 import { z } from 'zod';
 import type { Bindings } from '../types';
 import {
@@ -49,33 +48,7 @@ const passwordResetConfirmSchema = z.object({
 
 const authApp = new Hono<{ Bindings: Bindings }>();
 
-// CORS設定を追加
-authApp.use('/*', cors({
-  origin: (origin) => {
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3002',
-      'https://img-worker-templates.pages.dev',
-    ];
-
-    // 完全一致をチェック
-    if (allowedOrigins.includes(origin)) {
-      return origin;
-    }
-
-    // *.img-worker-templates.pages.dev のパターンをチェック
-    if (origin.match(/^https:\/\/[a-z0-9-]+\.img-worker-templates\.pages\.dev$/)) {
-      return origin;
-    }
-
-    return allowedOrigins[0]; // デフォルトを返す
-  },
-  credentials: true,
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
-  exposeHeaders: ['Content-Length'],
-  maxAge: 86400,
-}));
+// CORSはメインappで処理されるため、ここでは不要
 
 /**
  * ユーザー登録

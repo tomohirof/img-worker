@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { API_CONFIG } from '@/lib/config';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -26,17 +27,10 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-      console.log('API URL:', apiUrl); // デバッグ用
-
-      if (!apiUrl) {
-        setError('API URLが設定されていません');
-        setLoading(false);
-        return;
-      }
+      console.log('API URL:', API_CONFIG.BASE_URL); // デバッグ用
 
       const response = await fetch(
-        `${apiUrl}/auth/register`,
+        `${API_CONFIG.BASE_URL}/auth/register`,
         {
           method: 'POST',
           headers: {

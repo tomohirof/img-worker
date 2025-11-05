@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Bell, User, Settings, LogOut, ChevronDown } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
+import { API_CONFIG } from '@/lib/config';
 
 export function Header() {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -11,9 +12,8 @@ export function Header() {
 
   const handleLogout = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ogp-worker.tomohirof.workers.dev';
       const response = await fetch(
-        `${apiUrl}/auth/logout`,
+        `${API_CONFIG.BASE_URL}/auth/logout`,
         {
           method: 'POST',
           credentials: 'include',
