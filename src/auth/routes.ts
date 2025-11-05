@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { z } from 'zod';
 import type { Bindings } from '../types';
 import {
@@ -47,6 +48,21 @@ const passwordResetConfirmSchema = z.object({
 });
 
 const authApp = new Hono<{ Bindings: Bindings }>();
+
+// CORS設定を追加
+authApp.use('/*', cors({
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3002',
+    'https://img-worker-templates.pages.dev',
+    'https://*.img-worker-templates.pages.dev',
+  ],
+  credentials: true,
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  exposeHeaders: ['Content-Length'],
+  maxAge: 86400,
+}));
 
 /**
  * ユーザー登録
