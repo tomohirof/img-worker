@@ -6,8 +6,8 @@ const nextConfig = {
   },
   // 環境変数をクライアントサイドで利用可能に
   env: {
-    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
-    NEXT_PUBLIC_API_KEY: process.env.NEXT_PUBLIC_API_KEY,
+    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ogp-worker.tomohirof.workers.dev',
+    NEXT_PUBLIC_API_KEY: process.env.NEXT_PUBLIC_API_KEY || 'cwe8yxq4mtc-HCZ9ebm',
   },
 }
 
