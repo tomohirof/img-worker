@@ -1,5 +1,7 @@
 name = "img-worker-templates"
 pages_build_output_dir = ".vercel/output/static"
+compatibility_date = "2024-10-01"
+compatibility_flags = ["nodejs_compat"]
 
 [env.production.vars]
 NEXT_PUBLIC_API_BASE_URL = "https://ogp-worker.tomohirof.workers.dev"
