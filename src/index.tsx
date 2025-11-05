@@ -5,12 +5,11 @@ import { cors } from 'hono/cors'
 import satori from 'satori'
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
 import wasmModule from '../node_modules/@resvg/resvg-wasm/index_bg.wasm'
+import authApp from './auth/routes'
+import type { Bindings } from './types'
 
-type Env = {
-  API_KEY: string
-  TEMPLATES: KVNamespace
-  IMAGES: R2Bucket
-}
+// 後方互換性のためのエイリアス
+type Env = Bindings
 
 // Template types
 interface TextElement {
@@ -116,6 +115,9 @@ app.use('/*', cors({
   maxAge: 600,
   credentials: true,
 }))
+
+// 認証ルート
+app.route('/auth', authApp)
 async function toDataUrl(url: string): Promise<string> {
   const res = await fetch(url)
   if (!res.ok) throw new Error('failed to fetch image')
