@@ -1,0 +1,6 @@
+name = "img-worker-templates"
+pages_build_output_dir = ".vercel/output/static"
+
+[env.production.vars]
+NEXT_PUBLIC_API_BASE_URL = "https://ogp-worker.tomohirof.workers.dev"
+NEXT_PUBLIC_API_KEY = "cwe8yxq4mtc-HCZ9ebm"

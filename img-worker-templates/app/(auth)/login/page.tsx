@@ -18,8 +18,17 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+      console.log('API URL:', apiUrl); // デバッグ用
+
+      if (!apiUrl) {
+        setError('API URLが設定されていません');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/login`,
+        `${apiUrl}/auth/login`,
         {
           method: 'POST',
           headers: {
@@ -31,6 +40,7 @@ export default function LoginPage() {
       );
 
       const data = await response.json();
+      console.log('Response:', response.status, data); // デバッグ用
 
       if (!response.ok) {
         setError(data.message || 'ログインに失敗しました');
@@ -40,7 +50,8 @@ export default function LoginPage() {
       // ログイン成功
       router.push('/');
     } catch (err) {
-      setError('ログイン処理中にエラーが発生しました');
+      console.error('Login error:', err); // デバッグ用
+      setError(`ログイン処理中にエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }

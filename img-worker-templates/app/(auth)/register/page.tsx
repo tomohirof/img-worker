@@ -26,8 +26,17 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+      console.log('API URL:', apiUrl); // デバッグ用
+
+      if (!apiUrl) {
+        setError('API URLが設定されていません');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/register`,
+        `${apiUrl}/auth/register`,
         {
           method: 'POST',
           headers: {
@@ -39,6 +48,7 @@ export default function RegisterPage() {
       );
 
       const data = await response.json();
+      console.log('Response:', response.status, data); // デバッグ用
 
       if (!response.ok) {
         setError(data.message || '登録に失敗しました');
@@ -48,7 +58,8 @@ export default function RegisterPage() {
       // 登録成功
       router.push('/');
     } catch (err) {
-      setError('登録処理中にエラーが発生しました');
+      console.error('Register error:', err); // デバッグ用
+      setError(`登録処理中にエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }
