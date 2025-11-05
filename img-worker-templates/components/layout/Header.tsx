@@ -11,8 +11,9 @@ export function Header() {
 
   const handleLogout = async () => {
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ogp-worker.tomohirof.workers.dev';
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/logout`,
+        `${apiUrl}/auth/logout`,
         {
           method: 'POST',
           credentials: 'include',
