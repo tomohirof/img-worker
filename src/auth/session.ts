@@ -174,7 +174,7 @@ export function setSessionCookie(
   setCookie(c, SESSION_COOKIE_NAME, cookieValue, {
     httpOnly: true,
     secure: isSecure,
-    sameSite: 'Strict',
+    sameSite: 'None', // クロスサイトでのCookie送信を許可
     path: '/',
     maxAge: SESSION_EXPIRY_SECONDS,
   });

@@ -53,15 +53,21 @@ class APIClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
+
+    // localStorageからトークンを取得してCookieヘッダーとして送信
+    const token = typeof window !== 'undefined' ? localStorage.getItem('__session') : null;
+
     const headers = {
       'Content-Type': 'application/json',
       'x-api-key': this.apiKey,
+      ...(token && { 'Cookie': `__session=${token}` }),
       ...options.headers,
     };
 
     const response = await fetch(url, {
       ...options,
       headers,
+      credentials: 'include', // Cookieを送信
     });
 
     if (!response.ok) {

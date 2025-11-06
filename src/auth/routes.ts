@@ -108,13 +108,14 @@ authApp.post('/register', async (c) => {
       c.req.header('user-agent') || null
     );
 
-    // セッションCookieを設定（開発環境ではsecure=false）
-    const isSecure = c.env.ENVIRONMENT === 'production';
-    setSessionCookie(c, sessionId, token, isSecure);
+    // セッションCookieを設定（SameSite=Noneを使うためSecure必須）
+    setSessionCookie(c, sessionId, token, true);
 
+    // トークンをレスポンスにも含める（サードパーティCookieブロック対策）
     return c.json(
       {
         user: toUserProfile(user),
+        token: `${sessionId}:${token}`, // セッションIDとトークンを結合
       },
       201
     );
@@ -182,12 +183,13 @@ authApp.post('/login', async (c) => {
       c.req.header('user-agent') || null
     );
 
-    // セッションCookieを設定
-    const isSecure = c.env.ENVIRONMENT === 'production';
-    setSessionCookie(c, sessionId, token, isSecure);
+    // セッションCookieを設定（SameSite=Noneを使うためSecure必須）
+    setSessionCookie(c, sessionId, token, true);
 
+    // トークンをレスポンスにも含める（サードパーティCookieブロック対策）
     return c.json({
       user: toUserProfile(user),
+      token: `${sessionId}:${token}`, // セッションIDとトークンを結合
     });
   } catch (error) {
     console.error('Login error:', error);

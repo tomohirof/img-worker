@@ -19,52 +19,40 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // セッションCookieをチェック
-  const sessionCookie = request.cookies.get('__session');
-
   // 保護されたパスへのアクセス
+  // ミドルウェアではCookieのみチェック（localStorageはクライアント側で確認）
   if (protectedPaths.some((path) => pathname === path || pathname.startsWith(path + '/'))) {
-    if (!sessionCookie) {
-      // セッションがない場合、ログインページにリダイレクト
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      url.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(url);
-    }
+    const sessionCookie = request.cookies.get('__session');
 
-    // セッションがある場合、Workers APIでセッションを検証
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/session`,
-        {
-          headers: {
-            Cookie: `__session=${sessionCookie.value}`,
-          },
+    // Cookieがある場合のみサーバー側で検証
+    if (sessionCookie) {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/session`,
+          {
+            headers: {
+              Cookie: `__session=${sessionCookie.value}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          // セッションが無効な場合、Cookieを削除
+          const nextResponse = NextResponse.next();
+          nextResponse.cookies.delete('__session');
+          return nextResponse;
         }
-      );
-
-      if (!response.ok) {
-        // セッションが無効な場合、ログインページにリダイレクト
-        const url = request.nextUrl.clone();
-        url.pathname = '/login';
-        url.searchParams.set('redirect', pathname);
-
-        // Cookieを削除
-        const redirectResponse = NextResponse.redirect(url);
-        redirectResponse.cookies.delete('__session');
-        return redirectResponse;
+      } catch (error) {
+        console.error('Session validation error:', error);
       }
-    } catch (error) {
-      console.error('Session validation error:', error);
-      // エラーの場合もログインページにリダイレクト
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
     }
+
+    // Cookieがない場合は通過させる（クライアント側でlocalStorageをチェック）
   }
 
   // 認証ページへのアクセス（ログイン済みの場合）
   if (authPaths.some((path) => pathname === path || pathname.startsWith(path + '/'))) {
+    const sessionCookie = request.cookies.get('__session');
     if (sessionCookie) {
       // ログイン済みの場合、ダッシュボードにリダイレクト
       const url = request.nextUrl.clone();
