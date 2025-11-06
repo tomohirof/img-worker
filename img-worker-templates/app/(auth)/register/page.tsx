@@ -5,7 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { validatePassword } from '@/lib/utils/password-validator';
+import {
+  validatePassword,
+  calculatePasswordStrength,
+  getPasswordStrengthLabel,
+} from '@/lib/utils/password-validator';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -17,14 +21,18 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(0);
 
-  // パスワード変更時にバリデーション
+  // パスワード変更時にバリデーションと強度計算
   useEffect(() => {
     if (password) {
       const validation = validatePassword(password);
       setPasswordErrors(validation.errors);
+      const strength = calculatePasswordStrength(password);
+      setPasswordStrength(strength);
     } else {
       setPasswordErrors([]);
+      setPasswordStrength(0);
     }
   }, [password]);
 
@@ -145,6 +153,45 @@ export default function RegisterPage() {
                   className="flex h-11 w-full rounded-md border border-gray-300 bg-white px-3 py-2 pl-10 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
                 />
               </div>
+
+              {/* パスワード強度インジケーター */}
+              {password && (
+                <div className="mt-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-gray-600">パスワード強度:</span>
+                    <span
+                      className={`text-xs font-medium ${
+                        passwordStrength === 0
+                          ? 'text-red-600'
+                          : passwordStrength === 1
+                          ? 'text-orange-600'
+                          : passwordStrength === 2
+                          ? 'text-yellow-600'
+                          : passwordStrength === 3
+                          ? 'text-lime-600'
+                          : 'text-green-600'
+                      }`}
+                    >
+                      {getPasswordStrengthLabel(passwordStrength)}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        passwordStrength === 0
+                          ? 'bg-red-500 w-[20%]'
+                          : passwordStrength === 1
+                          ? 'bg-orange-500 w-[40%]'
+                          : passwordStrength === 2
+                          ? 'bg-yellow-500 w-[60%]'
+                          : passwordStrength === 3
+                          ? 'bg-lime-500 w-[80%]'
+                          : 'bg-green-500 w-full'
+                      }`}
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* パスワード要件 */}
               {showPasswordRequirements && password && (
