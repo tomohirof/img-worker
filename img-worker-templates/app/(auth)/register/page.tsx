@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { Mail, Lock, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { validatePassword } from '@/lib/utils/password-validator';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -14,10 +15,29 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+  const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
+
+  // パスワード変更時にバリデーション
+  useEffect(() => {
+    if (password) {
+      const validation = validatePassword(password);
+      setPasswordErrors(validation.errors);
+    } else {
+      setPasswordErrors([]);
+    }
+  }, [password]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // クライアント側バリデーション
+    const validation = validatePassword(password);
+    if (!validation.isValid) {
+      setError(validation.errors[0]);
+      return;
+    }
 
     // パスワード確認
     if (password !== confirmPassword) {
@@ -119,15 +139,48 @@ export default function RegisterPage() {
                   id="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setShowPasswordRequirements(true)}
                   placeholder="••••••••"
                   required
-                  minLength={8}
                   className="flex h-11 w-full rounded-md border border-gray-300 bg-white px-3 py-2 pl-10 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
                 />
               </div>
-              <p className="text-xs text-gray-600 mt-1">
-                8文字以上の英数字を含むパスワード
-              </p>
+
+              {/* パスワード要件 */}
+              {showPasswordRequirements && password && (
+                <div className="mt-2 p-3 bg-gray-50 rounded-md border border-gray-200">
+                  <p className="text-xs font-medium text-gray-700 mb-2">
+                    パスワード要件:
+                  </p>
+                  <ul className="space-y-1">
+                    {[
+                      { check: password.length >= 8, text: '8文字以上' },
+                      { check: /[A-Z]/.test(password), text: '大文字を含む' },
+                      { check: /[a-z]/.test(password), text: '小文字を含む' },
+                      { check: /[0-9]/.test(password), text: '数字を含む' },
+                      {
+                        check: /[!@#$%^&*()\-_+=[\]{}|;:'",.<>?/]/.test(password),
+                        text: '記号を含む',
+                      },
+                    ].map((requirement, index) => (
+                      <li key={index} className="flex items-center gap-2 text-xs">
+                        {requirement.check ? (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-gray-400" />
+                        )}
+                        <span
+                          className={
+                            requirement.check ? 'text-green-700' : 'text-gray-600'
+                          }
+                        >
+                          {requirement.text}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             {/* Confirm Password Field */}

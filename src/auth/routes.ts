@@ -60,10 +60,12 @@ authApp.post('/register', async (c) => {
     const validation = registerSchema.safeParse(body);
 
     if (!validation.success) {
+      const errorMessage =
+        validation.error?.errors?.[0]?.message || 'バリデーションエラーが発生しました';
       return c.json(
         {
           error: 'VALIDATION_ERROR',
-          message: validation.error.errors[0].message,
+          message: errorMessage,
         },
         400
       );
@@ -74,10 +76,13 @@ authApp.post('/register', async (c) => {
     // パスワード強度チェック
     const passwordValidation = validatePasswordStrength(password);
     if (!passwordValidation.valid) {
+      const errorMessage =
+        passwordValidation.errors?.[0] || 'パスワードが要件を満たしていません';
       return c.json(
         {
           error: 'WEAK_PASSWORD',
-          message: passwordValidation.errors[0],
+          message: errorMessage,
+          details: passwordValidation.errors,
         },
         400
       );
@@ -141,10 +146,12 @@ authApp.post('/login', async (c) => {
     const validation = loginSchema.safeParse(body);
 
     if (!validation.success) {
+      const errorMessage =
+        validation.error?.errors?.[0]?.message || 'バリデーションエラーが発生しました';
       return c.json(
         {
           error: 'VALIDATION_ERROR',
-          message: validation.error.errors[0].message,
+          message: errorMessage,
         },
         400
       );
@@ -290,10 +297,12 @@ authApp.post('/password/reset/request', async (c) => {
     const validation = passwordResetRequestSchema.safeParse(body);
 
     if (!validation.success) {
+      const errorMessage =
+        validation.error?.errors?.[0]?.message || 'バリデーションエラーが発生しました';
       return c.json(
         {
           error: 'VALIDATION_ERROR',
-          message: validation.error.errors[0].message,
+          message: errorMessage,
         },
         400
       );
@@ -379,10 +388,12 @@ authApp.post('/password/reset/confirm', async (c) => {
     const validation = passwordResetConfirmSchema.safeParse(body);
 
     if (!validation.success) {
+      const errorMessage =
+        validation.error?.errors?.[0]?.message || 'バリデーションエラーが発生しました';
       return c.json(
         {
           error: 'VALIDATION_ERROR',
-          message: validation.error.errors[0].message,
+          message: errorMessage,
         },
         400
       );

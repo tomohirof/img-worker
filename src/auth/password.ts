@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { validatePassword } from './password-validator';
 
 /**
  * パスワードの最小長
@@ -12,30 +13,18 @@ const SALT_ROUNDS = 10;
 
 /**
  * パスワードの強度を検証
+ *
+ * @param password - 検証するパスワード
+ * @returns バリデーション結果
  */
 export function validatePasswordStrength(password: string): {
   valid: boolean;
   errors: string[];
 } {
-  const errors: string[] = [];
-
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    errors.push(`パスワードは${MIN_PASSWORD_LENGTH}文字以上である必要があります`);
-  }
-
-  // 少なくとも1つの数字を含む
-  if (!/\d/.test(password)) {
-    errors.push('パスワードには少なくとも1つの数字を含める必要があります');
-  }
-
-  // 少なくとも1つの英字を含む
-  if (!/[a-zA-Z]/.test(password)) {
-    errors.push('パスワードには少なくとも1つの英字を含める必要があります');
-  }
-
+  const result = validatePassword(password);
   return {
-    valid: errors.length === 0,
-    errors,
+    valid: result.isValid,
+    errors: result.errors,
   };
 }
 
