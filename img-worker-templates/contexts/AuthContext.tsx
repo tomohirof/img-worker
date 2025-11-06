@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { API_CONFIG } from '@/lib/config';
 
 interface User {
@@ -73,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await response.json();
 
     if (!response.ok) {
+      toast.error(data.message || 'ログインに失敗しました');
       throw new Error(data.message || 'ログインに失敗しました');
     }
 
@@ -81,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(data.user);
+    toast.success('ログインしました');
   };
 
   const register = async (email: string, password: string) => {
@@ -96,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await response.json();
 
     if (!response.ok) {
+      toast.error(data.message || '登録に失敗しました');
       throw new Error(data.message || '登録に失敗しました');
     }
 
@@ -104,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(data.user);
+    toast.success('アカウントを作成しました');
   };
 
   const logout = async () => {
@@ -117,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       localStorage.removeItem('__session');
       setUser(null);
+      toast.success('ログアウトしました');
       router.push('/login');
     }
   };
