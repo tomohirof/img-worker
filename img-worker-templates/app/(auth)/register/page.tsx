@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
-import { API_CONFIG } from '@/lib/config';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -27,38 +28,10 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      console.log('API URL:', API_CONFIG.BASE_URL); // デバッグ用
-
-      const response = await fetch(
-        `${API_CONFIG.BASE_URL}/auth/register`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, password }),
-          credentials: 'include', // Cookieを受け取る
-        }
-      );
-
-      const data = await response.json();
-      console.log('Response:', response.status, data); // デバッグ用
-
-      if (!response.ok) {
-        setError(data.message || '登録に失敗しました');
-        return;
-      }
-
-      // トークンをlocalStorageに保存（サードパーティCookieブロック対策）
-      if (data.token) {
-        localStorage.setItem('__session', data.token);
-      }
-
-      // 登録成功
+      await register(email, password);
       router.push('/');
     } catch (err) {
-      console.error('Register error:', err); // デバッグ用
-      setError(`登録処理中にエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`);
+      setError(err instanceof Error ? err.message : '登録に失敗しました');
     } finally {
       setLoading(false);
     }

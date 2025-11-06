@@ -1,41 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Search, Bell, User, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { Search, Bell, User as UserIcon, Settings, LogOut, ChevronDown } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
-import { API_CONFIG } from '@/lib/config';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function Header() {
   const [showDropdown, setShowDropdown] = useState(false);
-  const router = useRouter();
+  const { user, logout } = useAuth();
 
   const handleLogout = async () => {
-    try {
-      const response = await fetch(
-        `${API_CONFIG.BASE_URL}/auth/logout`,
-        {
-          method: 'POST',
-          credentials: 'include',
-        }
-      );
-
-      // localStorageからトークンを削除
-      localStorage.removeItem('__session');
-
-      if (response.ok) {
-        // ログアウト成功、ログインページにリダイレクト
-        router.push('/login');
-      } else {
-        console.error('Logout failed');
-        // エラーでもログインページにリダイレクト
-        router.push('/login');
-      }
-    } catch (error) {
-      console.error('Logout error:', error);
-      // エラーでもログインページにリダイレクト
-      router.push('/login');
-    }
+    await logout();
   };
 
   return (
@@ -64,10 +39,10 @@ export function Header() {
               className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-accent transition-colors"
             >
               <div className="text-right">
-                <p className="text-sm font-medium">管理者</p>
-                <p className="text-xs text-muted-foreground">admin@example.com</p>
+                <p className="text-sm font-medium">ユーザー</p>
+                <p className="text-xs text-muted-foreground">{user?.email}</p>
               </div>
-              <Avatar fallback="A" size="md" />
+              <Avatar fallback={user?.email?.[0].toUpperCase() || 'U'} size="md" />
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </button>
 
@@ -79,12 +54,12 @@ export function Header() {
                 />
                 <div className="absolute right-0 top-full mt-2 w-56 rounded-lg border border-border bg-white p-1 shadow-lg z-50">
                   <div className="px-2 py-1.5 mb-1">
-                    <p className="text-sm font-medium">管理者</p>
-                    <p className="text-xs text-muted-foreground">admin@example.com</p>
+                    <p className="text-sm font-medium">ユーザー</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
                   </div>
                   <div className="h-px bg-border my-1"></div>
                   <button className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent transition-colors">
-                    <User className="h-4 w-4" />
+                    <UserIcon className="h-4 w-4" />
                     プロフィール
                   </button>
                   <button className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent transition-colors">

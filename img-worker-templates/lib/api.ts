@@ -71,6 +71,14 @@ class APIClient {
     });
 
     if (!response.ok) {
+      // 401エラーの場合、トークンを削除してログインページにリダイレクト
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('__session');
+          window.location.href = '/login';
+        }
+      }
+
       const errorText = await response.text();
       throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
     }

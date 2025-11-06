@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
-import { API_CONFIG } from '@/lib/config';
+import { useAuth } from '@/contexts/AuthContext';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -19,38 +21,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      console.log('API URL:', API_CONFIG.BASE_URL); // デバッグ用
+      await login(email, password);
 
-      const response = await fetch(
-        `${API_CONFIG.BASE_URL}/auth/login`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, password }),
-          credentials: 'include', // Cookieを受け取る
-        }
-      );
-
-      const data = await response.json();
-      console.log('Response:', response.status, data); // デバッグ用
-
-      if (!response.ok) {
-        setError(data.message || 'ログインに失敗しました');
-        return;
-      }
-
-      // トークンをlocalStorageに保存（サードパーティCookieブロック対策）
-      if (data.token) {
-        localStorage.setItem('__session', data.token);
-      }
-
-      // ログイン成功
-      router.push('/');
+      // リダイレクト先を取得（デフォルトは'/'）
+      const redirect = searchParams.get('redirect') || '/';
+      router.push(redirect);
     } catch (err) {
-      console.error('Login error:', err); // デバッグ用
-      setError(`ログイン処理中にエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`);
+      setError(err instanceof Error ? err.message : 'ログインに失敗しました');
     } finally {
       setLoading(false);
     }
@@ -184,5 +161,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
