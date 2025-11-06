@@ -20,14 +20,21 @@ export function Header() {
         }
       );
 
+      // localStorageからトークンを削除
+      localStorage.removeItem('__session');
+
       if (response.ok) {
         // ログアウト成功、ログインページにリダイレクト
         router.push('/login');
       } else {
         console.error('Logout failed');
+        // エラーでもログインページにリダイレクト
+        router.push('/login');
       }
     } catch (error) {
       console.error('Logout error:', error);
+      // エラーでもログインページにリダイレクト
+      router.push('/login');
     }
   };
 

@@ -145,19 +145,28 @@ export async function getSessionFromContext(
   c: Context,
   kv: KVNamespace
 ): Promise<Session | null> {
+  // まずAuthorizationヘッダーをチェック（トークンベース認証）
+  const authHeader = c.req.header('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const tokenValue = authHeader.substring(7); // "Bearer "を除去
+    const parts = tokenValue.split(':');
+    if (parts.length === 2) {
+      const [sessionId, token] = parts;
+      return await validateSession(kv, sessionId, token);
+    }
+  }
+
+  // 次にCookieをチェック（Cookieベース認証）
   const cookieValue = getCookie(c, SESSION_COOKIE_NAME);
-  if (!cookieValue) {
-    return null;
+  if (cookieValue) {
+    const parts = cookieValue.split(':');
+    if (parts.length === 2) {
+      const [sessionId, token] = parts;
+      return await validateSession(kv, sessionId, token);
+    }
   }
 
-  // Cookie値を分解: sessionId:token
-  const parts = cookieValue.split(':');
-  if (parts.length !== 2) {
-    return null;
-  }
-
-  const [sessionId, token] = parts;
-  return await validateSession(kv, sessionId, token);
+  return null;
 }
 
 /**

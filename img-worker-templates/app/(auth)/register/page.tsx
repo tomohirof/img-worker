@@ -49,6 +49,11 @@ export default function RegisterPage() {
         return;
       }
 
+      // トークンをlocalStorageに保存（サードパーティCookieブロック対策）
+      if (data.token) {
+        localStorage.setItem('__session', data.token);
+      }
+
       // 登録成功
       router.push('/');
     } catch (err) {
