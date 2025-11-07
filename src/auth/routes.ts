@@ -14,6 +14,7 @@ import {
   deleteSession,
   deleteAllUserSessions,
 } from './session';
+import { sendPasswordResetEmail } from '../emails/mailer';
 import {
   createUser,
   getUserByEmail,
@@ -348,14 +349,38 @@ authApp.post('/password/reset/request', async (c) => {
       { expirationTtl: 900 } // 15分
     );
 
-    // TODO: メール送信機能を実装（Resend統合）
-    // 現在は開発用にトークンをログ出力
-    console.log('Password reset token:', resetToken);
-    console.log('Reset ID:', resetId);
-    console.log(
-      'Reset URL:',
-      `http://localhost:3000/reset?id=${resetId}&token=${resetToken}`
-    );
+    // リセットURLを構築
+    const baseUrl = c.env.APP_BASE_URL || 'http://localhost:3000';
+    const resetUrl = `${baseUrl}/reset?id=${resetId}&token=${resetToken}`;
+
+    // 開発環境ではログ出力（テスト用）
+    if (c.env.ENVIRONMENT !== 'production') {
+      console.log('Password reset URL:', resetUrl);
+    }
+
+    // メール送信（本番環境またはResend API設定がある場合のみ）
+    if (c.env.RESEND_API_KEY && c.env.RESEND_FROM_EMAIL) {
+      try {
+        const emailResult = await sendPasswordResetEmail({
+          email,
+          resetUrl,
+          resendApiKey: c.env.RESEND_API_KEY,
+          fromEmail: c.env.RESEND_FROM_EMAIL,
+        });
+
+        if (!emailResult.success) {
+          console.error('Failed to send password reset email:', emailResult.error);
+          // メール送信失敗でもユーザーには同じレスポンスを返す（セキュリティ対策）
+        }
+      } catch (error) {
+        console.error('Error while sending password reset email:', error);
+        // エラーが発生してもユーザーには同じレスポンスを返す（セキュリティ対策）
+      }
+    } else {
+      console.warn(
+        'Resend API key or from email not configured. Password reset email not sent.'
+      );
+    }
 
     return c.json({
       message:

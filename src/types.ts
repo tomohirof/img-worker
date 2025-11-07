@@ -6,4 +6,9 @@ export interface Bindings {
   TEMPLATES: KVNamespace;
   IMAGES: R2Bucket;
   ENVIRONMENT?: 'development' | 'production';
+
+  // メール送信関連（Resend）
+  RESEND_API_KEY?: string;
+  RESEND_FROM_EMAIL?: string;
+  APP_BASE_URL?: string;
 }

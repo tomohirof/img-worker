@@ -13,6 +13,7 @@
     "@resvg/resvg-wasm": "^2.6.2",
     "bcryptjs": "^3.0.3",
     "hono": "^4.6.8",
+    "resend": "^6.4.2",
     "satori": "^0.10.13",
     "zod": "^4.1.12"
   },
