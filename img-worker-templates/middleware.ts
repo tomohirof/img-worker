@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// 認証が必要なパス
-const protectedPaths = ['/', '/templates', '/generate-test', '/api-docs', '/dashboard'];
+// 認証が必要なパス（/はパブリックなランディングページなので除外）
+const protectedPaths = ['/templates', '/generate-test', '/api-docs', '/dashboard'];
 
 // 認証ページ（ログイン済みユーザーがアクセスした場合にリダイレクト）
 const authPaths = ['/login', '/register', '/reset-password', '/reset'];

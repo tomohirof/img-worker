@@ -175,15 +175,18 @@ export async function getSessionFromContext(
 export function setSessionCookie(
   c: Context,
   sessionId: string,
-  token: string,
-  isSecure: boolean = true
+  token: string
 ): void {
   const cookieValue = `${sessionId}:${token}`;
 
+  // Originヘッダーを見て、localhost の場合は secure を false にする
+  const origin = c.req.header('Origin') || '';
+  const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+
   setCookie(c, SESSION_COOKIE_NAME, cookieValue, {
     httpOnly: true,
-    secure: isSecure,
-    sameSite: 'None', // クロスサイトでのCookie送信を許可
+    secure: !isLocalhost, // localhostの場合はfalse、それ以外はtrue
+    sameSite: isLocalhost ? 'Lax' : 'None', // localhostの場合はLax、本番はNone
     path: '/',
     maxAge: SESSION_EXPIRY_SECONDS,
   });

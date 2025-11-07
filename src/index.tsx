@@ -124,7 +124,7 @@ app.use('/*', cors({
     return null;
   },
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'x-api-key'],
+  allowHeaders: ['Content-Type', 'x-api-key', 'Authorization'],
   exposeHeaders: ['Content-Length'],
   maxAge: 600,
   credentials: true,

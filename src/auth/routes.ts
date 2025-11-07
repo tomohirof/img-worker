@@ -114,7 +114,7 @@ authApp.post('/register', async (c) => {
     );
 
     // セッションCookieを設定（SameSite=Noneを使うためSecure必須）
-    setSessionCookie(c, sessionId, token, true);
+    setSessionCookie(c, sessionId, token);
 
     // トークンをレスポンスにも含める（サードパーティCookieブロック対策）
     return c.json(
@@ -191,7 +191,7 @@ authApp.post('/login', async (c) => {
     );
 
     // セッションCookieを設定（SameSite=Noneを使うためSecure必須）
-    setSessionCookie(c, sessionId, token, true);
+    setSessionCookie(c, sessionId, token);
 
     // トークンをレスポンスにも含める（サードパーティCookieブロック対策）
     return c.json({
