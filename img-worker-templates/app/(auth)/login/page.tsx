@@ -23,8 +23,8 @@ function LoginForm() {
     try {
       await login(email, password);
 
-      // リダイレクト先を取得（デフォルトは'/'）
-      const redirect = searchParams.get('redirect') || '/';
+      // リダイレクト先を取得（デフォルトは'/dashboard'）
+      const redirect = searchParams.get('redirect') || '/dashboard';
       router.push(redirect);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ログインに失敗しました');

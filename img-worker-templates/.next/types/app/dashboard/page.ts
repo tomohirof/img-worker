@@ -1,4 +1,4 @@
-// File: /Users/fukudatomohiro/DevCode/admin-gen/img-worker-templates/app/dashboard/page.tsx
+// File: /Users/fukudatomohiro/DevCode/img-worker/img-worker-templates/app/dashboard/page.tsx
 import * as entry from '../../../../app/dashboard/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

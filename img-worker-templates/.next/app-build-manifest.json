@@ -16,15 +16,15 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/page.js"
     ],
-    "/templates/page": [
+    "/(auth)/register/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/templates/page.js"
+      "static/chunks/app/(auth)/register/page.js"
     ],
-    "/_not-found/page": [
+    "/(auth)/login/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/_not-found/page.js"
+      "static/chunks/app/(auth)/login/page.js"
     ]
   }
 }

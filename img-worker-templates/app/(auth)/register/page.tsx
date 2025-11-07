@@ -57,7 +57,7 @@ export default function RegisterPage() {
 
     try {
       await register(email, password);
-      router.push('/');
+      router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : '登録に失敗しました');
     } finally {

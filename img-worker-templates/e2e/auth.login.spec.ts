@@ -27,7 +27,7 @@ test.describe('ログイン', () => {
       await userMenuButton.click();
       const logoutButton = page.locator('button').filter({ hasText: 'ログアウト' });
       await logoutButton.click();
-      await page.waitForURL('/login');
+      await page.waitForURL(/\/login/);
     } else {
       await loginPage.goto();
     }
@@ -57,7 +57,7 @@ test.describe('ログイン', () => {
     });
 
     await test.step('ログインページに留まる', async () => {
-      await expect(loginPage.page).toHaveURL('/login');
+      await expect(loginPage.page).toHaveURL(/\/login/);
     });
   });
 
@@ -71,7 +71,7 @@ test.describe('ログイン', () => {
     });
 
     await test.step('ログインページに留まる', async () => {
-      await expect(loginPage.page).toHaveURL('/login');
+      await expect(loginPage.page).toHaveURL(/\/login/);
     });
   });
 
@@ -81,7 +81,7 @@ test.describe('ログイン', () => {
     });
 
     await test.step('ログインページに留まる', async () => {
-      await expect(loginPage.page).toHaveURL('/login');
+      await expect(loginPage.page).toHaveURL(/\/login/);
     });
   });
 

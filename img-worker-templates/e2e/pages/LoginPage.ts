@@ -35,13 +35,13 @@ export class LoginPage {
   }
 
   async expectSuccessToast() {
-    await expect(this.toast).toBeVisible();
-    await expect(this.toast).toContainText('ログインしました');
+    await expect(this.toast.first()).toBeVisible();
+    await expect(this.toast.first()).toContainText('ログインしました');
   }
 
   async expectErrorToast() {
-    await expect(this.toast).toBeVisible();
-    await expect(this.toast).toContainText(/ログインに失敗しました|エラー/i);
+    await expect(this.toast.first()).toBeVisible();
+    await expect(this.toast.first()).toContainText(/ログインに失敗しました|エラー|メールアドレスまたはパスワードが正しくありません/i);
   }
 
   async expectRedirectToDashboard() {

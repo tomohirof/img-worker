@@ -1,5 +1,6 @@
 {
-  "/templates/new/page": "app/templates/new/page.js",
-  "/templates/page": "app/templates/page.js",
-  "/generate-test/page": "app/generate-test/page.js"
+  "/page": "app/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/(auth)/register/page": "app/(auth)/register/page.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js"
 }

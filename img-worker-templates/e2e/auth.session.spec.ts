@@ -59,7 +59,7 @@ test.describe('認証セッション', () => {
     });
 
     await test.step('ログインページにリダイレクトされる', async () => {
-      await expect(page).toHaveURL('/login');
+      await expect(page).toHaveURL(/\/login/);
     });
   });
 
@@ -73,7 +73,7 @@ test.describe('認証セッション', () => {
       const logoutButton = page.locator('button').filter({ hasText: 'ログアウト' });
       await expect(logoutButton).toBeVisible();
       await logoutButton.click();
-      await page.waitForURL('/login');
+      await page.waitForURL(/\/login/);
     });
 
     await test.step('ホームページにアクセスを試みる', async () => {
@@ -149,7 +149,7 @@ test.describe('認証セッション', () => {
       const logoutButton = page.locator('button').filter({ hasText: 'ログアウト' });
       await expect(logoutButton).toBeVisible();
       await logoutButton.click();
-      await page.waitForURL('/login');
+      await page.waitForURL(/\/login/);
     });
 
     await test.step('localStorageからトークンが削除される', async () => {
