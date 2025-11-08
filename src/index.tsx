@@ -1532,15 +1532,26 @@ app.get('/templates', async (c) => {
   const unauthorized = requireApiKey(c)
   if (unauthorized) return unauthorized
 
-  const keys = await c.env.TEMPLATES.list()
-  const templates: Template[] = []
+  try {
+    // Only list keys with 'template:' prefix
+    const keys = await c.env.TEMPLATES.list({ prefix: 'template:' })
+    const templates: Template[] = []
 
-  for (const key of keys.keys) {
-    const template = await c.env.TEMPLATES.get(key.name, 'json')
-    if (template) templates.push(template as Template)
+    for (const key of keys.keys) {
+      try {
+        const template = await c.env.TEMPLATES.get(key.name, 'json')
+        if (template) templates.push(template as Template)
+      } catch (error) {
+        console.error(`Failed to parse template ${key.name}:`, error)
+        // Continue with other templates
+      }
+    }
+
+    return c.json(templates)
+  } catch (error) {
+    console.error('Failed to list templates:', error)
+    return c.json({ error: 'Failed to list templates' }, 500)
   }
-
-  return c.json(templates)
 })
 
 // GET /templates/:id - Get a specific template
