@@ -4,7 +4,7 @@ compatibility_date = "2024-10-01"
 
 # Environment variables (non-sensitive)
 [vars]
-APP_BASE_URL = "https://img-worker-templates.pages.dev"
+FRONTEND_BASE_URL = "https://img-worker-templates.pages.dev"
 ENVIRONMENT = "production"
 
 # KV Namespaces for template storage

@@ -10,5 +10,5 @@ export interface Bindings {
   // メール送信関連（Resend）
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
-  APP_BASE_URL?: string;
+  FRONTEND_BASE_URL?: string;
 }

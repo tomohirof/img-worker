@@ -350,7 +350,9 @@ authApp.post('/password/reset/request', async (c) => {
     );
 
     // リセットURLを構築
-    const baseUrl = c.env.APP_BASE_URL || 'http://localhost:3000';
+    console.log('DEBUG: FRONTEND_BASE_URL =', c.env.FRONTEND_BASE_URL);
+    console.log('DEBUG: ENVIRONMENT =', c.env.ENVIRONMENT);
+    const baseUrl = c.env.FRONTEND_BASE_URL || 'http://localhost:3000';
     const resetUrl = `${baseUrl}/reset?id=${resetId}&token=${resetToken}`;
 
     // 開発環境ではログ出力（テスト用）
