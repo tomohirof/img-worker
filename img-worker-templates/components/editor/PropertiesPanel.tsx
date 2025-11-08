@@ -25,17 +25,13 @@ export function PropertiesPanel({
   onAddTextElement,
 }: Props) {
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const selectedElement = template.elements.find(
     (el) => el.id === selectedElementId
   );
 
-  const handleBackgroundUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const validateAndUploadFile = async (file: File) => {
     // ファイルタイプとサイズのバリデーション
     const allowedTypes = [
       'image/png',
@@ -68,6 +64,36 @@ export function PropertiesPanel({
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleBackgroundUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await validateAndUploadFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    await validateAndUploadFile(file);
   };
 
   if (!selectedElement) {
@@ -191,12 +217,17 @@ export function PropertiesPanel({
                 画像をアップロード
               </label>
               <div
-                className={`min-h-[150px] border-2 border-dashed border-blue-500 rounded-lg p-8 text-center cursor-pointer transition-all ${
+                className={`min-h-[150px] border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
                   isUploading
-                    ? 'opacity-60 pointer-events-none bg-gray-50'
-                    : 'hover:bg-gray-50 hover:border-blue-600'
+                    ? 'opacity-60 pointer-events-none bg-gray-50 border-gray-300'
+                    : isDragging
+                    ? 'bg-blue-50 border-blue-600 border-solid'
+                    : 'border-blue-500 hover:bg-gray-50 hover:border-blue-600'
                 }`}
-                onClick={() => document.getElementById('fileInput')?.click()}
+                onClick={() => !isUploading && document.getElementById('fileInput')?.click()}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
               >
                 {isUploading ? (
                   <div className="text-gray-600">アップロード中...</div>

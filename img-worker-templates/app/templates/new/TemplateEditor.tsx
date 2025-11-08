@@ -20,7 +20,7 @@ export function TemplateEditor() {
     name: '',
     width: 1200,
     height: 630,
-    background: { type: 'color', value: '#1e40ff' },
+    background: { type: 'upload', value: '' },
     elements: [],
     createdAt: '',
     updatedAt: '',
@@ -230,8 +230,8 @@ export function TemplateEditor() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
-        <div>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6">
+        <div className="min-w-0">
           <Canvas
             template={template}
             selectedElementId={selectedElementId}
@@ -239,7 +239,7 @@ export function TemplateEditor() {
             onUpdateElement={handleUpdateElement}
           />
         </div>
-        <div>
+        <div className="min-w-0">
           <PropertiesPanel
             template={template}
             selectedElementId={selectedElementId}
