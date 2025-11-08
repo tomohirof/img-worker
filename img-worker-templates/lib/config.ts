@@ -3,8 +3,8 @@ function getApiConfig() {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   const apiKey = process.env.NEXT_PUBLIC_API_KEY;
 
-  // 開発環境のデフォルト値
-  const defaultBaseUrl = 'http://localhost:8787';
+  // デフォルト値（本番環境）
+  const defaultBaseUrl = 'https://ogp-worker.tomohirof.workers.dev';
   const defaultApiKey = 'cwe8yxq4mtc-HCZ9ebm';
 
   // 環境変数が未設定の場合は警告を出す
