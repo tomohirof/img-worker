@@ -247,6 +247,7 @@ export function TemplateEditor() {
             onUpdateElement={handleUpdateElement}
             onDeleteElement={handleDeleteElement}
             onUploadBackground={handleUploadBackground}
+            onAddTextElement={handleAddTextElement}
           />
         </div>
       </div>

@@ -12,6 +12,7 @@ interface Props {
   onUpdateElement: (id: string, updates: Partial<TextElement>) => void;
   onDeleteElement: () => void;
   onUploadBackground: (file: File) => Promise<void>;
+  onAddTextElement: () => void;
 }
 
 export function PropertiesPanel({
@@ -21,6 +22,7 @@ export function PropertiesPanel({
   onUpdateElement,
   onDeleteElement,
   onUploadBackground,
+  onAddTextElement,
 }: Props) {
   const [isUploading, setIsUploading] = useState(false);
 
@@ -230,6 +232,15 @@ export function PropertiesPanel({
               />
             </div>
           )}
+
+          <div className="pt-4 border-t">
+            <Button
+              onClick={onAddTextElement}
+              className="w-full bg-blue-600 text-white hover:bg-blue-700"
+            >
+              + テキスト要素を追加
+            </Button>
+          </div>
         </div>
       </div>
     );
