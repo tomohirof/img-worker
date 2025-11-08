@@ -359,7 +359,12 @@ authApp.post('/password/reset/request', async (c) => {
     }
 
     // メール送信（本番環境またはResend API設定がある場合のみ）
+    console.log('[DEBUG] Checking email configuration...');
+    console.log('[DEBUG] RESEND_API_KEY exists:', !!c.env.RESEND_API_KEY);
+    console.log('[DEBUG] RESEND_FROM_EMAIL exists:', !!c.env.RESEND_FROM_EMAIL);
+
     if (c.env.RESEND_API_KEY && c.env.RESEND_FROM_EMAIL) {
+      console.log('[DEBUG] Attempting to send password reset email to:', email);
       try {
         const emailResult = await sendPasswordResetEmail({
           email,
@@ -368,9 +373,13 @@ authApp.post('/password/reset/request', async (c) => {
           fromEmail: c.env.RESEND_FROM_EMAIL,
         });
 
+        console.log('[DEBUG] Email send result:', emailResult);
+
         if (!emailResult.success) {
           console.error('Failed to send password reset email:', emailResult.error);
           // メール送信失敗でもユーザーには同じレスポンスを返す（セキュリティ対策）
+        } else {
+          console.log('[DEBUG] Email sent successfully!');
         }
       } catch (error) {
         console.error('Error while sending password reset email:', error);
