@@ -1,7 +1,9 @@
 {
+  "/templates/[id]/edit/page": "app/templates/[id]/edit/page.js",
+  "/templates/page": "app/templates/page.js",
   "/(auth)/login/page": "app/(auth)/login/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/(auth)/reset-password/page": "app/(auth)/reset-password/page.js",
+  "/generate-test/page": "app/generate-test/page.js",
+  "/templates/new/page": "app/templates/new/page.js",
   "/page": "app/page.js",
-  "/(auth)/reset/page": "app/(auth)/reset/page.js"
+  "/dashboard/page": "app/dashboard/page.js"
 }

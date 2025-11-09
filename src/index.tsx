@@ -37,7 +37,7 @@ interface Template {
   width: number
   height: number
   background: {
-    type: 'color' | 'image'
+    type: 'color' | 'image' | 'upload'
     value: string  // color code or image URL
   }
   elements: TextElement[]
@@ -164,14 +164,21 @@ async function renderTemplateToSvg(template: Template, data: Record<string, stri
 
   // Convert background image URL to Data URL if needed
   let backgroundValue = background.value
-  if (background.type === 'image' || background.type === 'upload') {
+  let effectiveBackgroundType = background.type
+
+  if ((background.type === 'image' || background.type === 'upload') && background.value) {
     try {
       backgroundValue = await toDataUrl(background.value)
     } catch (error) {
       console.error('Failed to convert background image to Data URL:', error)
       // Fallback to white background if image fails to load
       backgroundValue = '#ffffff'
+      effectiveBackgroundType = 'color'
     }
+  } else if ((background.type === 'image' || background.type === 'upload') && !background.value) {
+    // If no image URL is provided, use white background
+    backgroundValue = '#ffffff'
+    effectiveBackgroundType = 'color'
   }
 
   // Create JSX elements from template definition
@@ -235,7 +242,7 @@ async function renderTemplateToSvg(template: Template, data: Record<string, stri
       style={{
         width,
         height,
-        background: background.type === 'color' ? background.value : `url(${backgroundValue})`,
+        background: effectiveBackgroundType === 'color' ? backgroundValue : `url(${backgroundValue})`,
         display: 'flex',
         position: 'relative',
       }}
