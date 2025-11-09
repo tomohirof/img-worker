@@ -135,13 +135,40 @@ app.use('/*', cors({
 // 認証ルート
 app.route('/auth', authApp)
 app.route('/api-keys', apiKeysApp)
-async function toDataUrl(url: string): Promise<string> {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error('failed to fetch image')
-  const buf = await res.arrayBuffer()
-  const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)))
-  const ct = res.headers.get('content-type') || 'image/png'
-  return `data:${ct};base64,${b64}`
+async function toDataUrl(url: string, env?: Bindings): Promise<string> {
+  // Check if URL is a local image URL (e.g., http://localhost:8008/images/uploads/...)
+  // or production image URL (e.g., https://ogp-worker.tomohirof.workers.dev/images/uploads/...)
+  const imagePathMatch = url.match(/\/images\/(.+)$/);
+
+  if (imagePathMatch && env?.IMAGES) {
+    // Extract the key (e.g., "uploads/xxx.jpg")
+    const key = imagePathMatch[1];
+
+    try {
+      // Fetch from R2 directly
+      const object = await env.IMAGES.get(key);
+
+      if (!object) {
+        throw new Error(`Image not found in R2: ${key}`);
+      }
+
+      const buf = await object.arrayBuffer();
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      const ct = object.httpMetadata?.contentType || 'image/png';
+      return `data:${ct};base64,${b64}`;
+    } catch (error) {
+      console.error('Failed to fetch image from R2:', error);
+      throw error;
+    }
+  }
+
+  // For external URLs, use fetch as before
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('failed to fetch image');
+  const buf = await res.arrayBuffer();
+  const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const ct = res.headers.get('content-type') || 'image/png';
+  return `data:${ct};base64,${b64}`;
 }
 type RenderInput = {
   template?: string | Template  // 'magazine-basic' or template object for preview
@@ -159,7 +186,7 @@ type RenderInput = {
   }
 }
 // Render template to SVG using Satori
-async function renderTemplateToSvg(template: Template, data: Record<string, string>): Promise<string> {
+async function renderTemplateToSvg(template: Template, data: Record<string, string>, env?: Bindings): Promise<string> {
   const { width, height, background, elements } = template
 
   // Convert background image URL to Data URL if needed
@@ -168,7 +195,7 @@ async function renderTemplateToSvg(template: Template, data: Record<string, stri
 
   if ((background.type === 'image' || background.type === 'upload') && background.value) {
     try {
-      backgroundValue = await toDataUrl(background.value)
+      backgroundValue = await toDataUrl(background.value, env)
     } catch (error) {
       console.error('Failed to convert background image to Data URL:', error)
       // Fallback to white background if image fails to load
@@ -266,11 +293,11 @@ async function renderTemplateToSvg(template: Template, data: Record<string, stri
   return svg
 }
 
-async function templateMagazineBasic(input: Required<RenderInput>) {
+async function templateMagazineBasic(input: Required<RenderInput>, env?: Bindings) {
   const { width, height, data } = input
   const { title, subtitle = '', brand = 'SIXONE MAGAZINE', textColor = '#111', bgColor = '#f9f7f4', cover } = data
   let coverDataUrl: string | null = null
-  if (cover?.image_url) try { coverDataUrl = await toDataUrl(cover.image_url) } catch {}
+  if (cover?.image_url) try { coverDataUrl = await toDataUrl(cover.image_url, env) } catch {}
 
   const jsx = (
     <div style={{ width, height, background: bgColor, color: textColor, display: 'flex',
@@ -540,7 +567,7 @@ app.post('/render', async (c) => {
   // Check if template object is provided directly (for preview)
   if (body.template && typeof body.template === 'object') {
     const template = body.template as Template
-    svg = await renderTemplateToSvg(template, body.data as Record<string, string>)
+    svg = await renderTemplateToSvg(template, body.data as Record<string, string>, c.env)
   }
   // Check if using template ID from KV
   else if (body.templateId) {
@@ -551,7 +578,7 @@ app.post('/render', async (c) => {
     }
 
     // Render using template
-    svg = await renderTemplateToSvg(template, body.data as Record<string, string>)
+    svg = await renderTemplateToSvg(template, body.data as Record<string, string>, c.env)
   }
   // Check if using template name
   else if (body.template && typeof body.template === 'string' && body.template !== 'magazine-basic') {
@@ -572,7 +599,7 @@ app.post('/render', async (c) => {
     }
 
     // Render using template
-    svg = await renderTemplateToSvg(foundTemplate, body.data as Record<string, string>)
+    svg = await renderTemplateToSvg(foundTemplate, body.data as Record<string, string>, c.env)
   }
   // Use legacy magazine-basic template
   else {
@@ -583,7 +610,7 @@ app.post('/render', async (c) => {
       format, width, height,
       data: body.data as any
     }
-    svg = await templateMagazineBasic(input)
+    svg = await templateMagazineBasic(input, c.env)
   }
 
   if (format === 'svg') return new Response(svg, { headers: { 'Content-Type': 'image/svg+xml' } })
@@ -1682,7 +1709,7 @@ app.post('/templates/thumbnail', async (c) => {
     })
 
     // Render to SVG
-    const svg = await renderTemplateToSvg(template, sampleData)
+    const svg = await renderTemplateToSvg(template, sampleData, c.env)
 
     // Convert to PNG
     await ensureWasmInitialized()
