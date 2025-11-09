@@ -6,9 +6,7 @@ import { validateApiKey, recordLastUsed } from '../api-keys/api-key';
  * APIキー認証ミドルウェア
  *
  * リクエストからAPIキーを取得し、検証します。
- * APIキーは以下の方法で渡すことができます：
- * - ヘッダー: x-api-key
- * - クエリパラメータ: api_key
+ * APIキーはHTTPヘッダー（x-api-key）で渡す必要があります。
  *
  * 認証に成功すると、c.set('apiUserId', userId) でユーザーIDが設定されます。
  */
@@ -16,10 +14,8 @@ export async function requireApiKeyAuth(
   c: Context<{ Bindings: Bindings }>,
   next: Next
 ) {
-  // ヘッダーまたはクエリパラメータからAPIキーを取得
-  const headerApiKey = c.req.header('x-api-key');
-  const queryApiKey = c.req.query('api_key');
-  const apiKey = headerApiKey || queryApiKey;
+  // HTTPヘッダーからAPIキーを取得（セキュリティ上、クエリパラメータは使用しない）
+  const apiKey = c.req.header('x-api-key');
 
   if (!apiKey) {
     return c.json(
