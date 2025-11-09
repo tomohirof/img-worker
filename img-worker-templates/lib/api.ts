@@ -39,6 +39,30 @@ export interface Template {
 export type CreateTemplateInput = Omit<Template, 'id' | 'createdAt' | 'updatedAt'>;
 export type UpdateTemplateInput = Partial<CreateTemplateInput>;
 
+// API Key Types
+export interface ApiKeyInfo {
+  keyId: string;
+  userId: string;
+  name: string;
+  keyPreview: string;
+  createdAt: number;
+  lastUsedAt?: number;
+  isActive: boolean;
+}
+
+export interface ApiKeyCreated extends ApiKeyInfo {
+  apiKey: string;
+}
+
+export interface CreateApiKeyRequest {
+  name: string;
+}
+
+export interface UpdateApiKeyRequest {
+  name?: string;
+  isActive?: boolean;
+}
+
 class APIClient {
   private baseURL: string;
   private apiKey: string;
@@ -175,6 +199,37 @@ class APIClient {
     }
 
     return response.blob();
+  }
+
+  // API Key APIs
+  async listApiKeys(): Promise<ApiKeyInfo[]> {
+    const result = await this.request<{ apiKeys: ApiKeyInfo[] }>('/api-keys');
+    return result.apiKeys;
+  }
+
+  async getApiKey(keyId: string): Promise<ApiKeyInfo> {
+    const result = await this.request<{ apiKey: ApiKeyInfo }>(`/api-keys/${keyId}`);
+    return result.apiKey;
+  }
+
+  async createApiKey(data: CreateApiKeyRequest): Promise<ApiKeyCreated> {
+    return this.request<ApiKeyCreated>('/api-keys', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateApiKey(keyId: string, data: UpdateApiKeyRequest): Promise<ApiKeyInfo> {
+    return this.request<ApiKeyInfo>(`/api-keys/${keyId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteApiKey(keyId: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/api-keys/${keyId}`, {
+      method: 'DELETE',
+    });
   }
 }
 

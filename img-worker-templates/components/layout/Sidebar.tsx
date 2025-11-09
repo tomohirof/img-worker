@@ -7,6 +7,7 @@ import {
   PictureInPicture2,
   Wand2,
   BookOpen,
+  Key,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -21,6 +22,11 @@ const navItems: NavItem[] = [
     href: "/templates",
     label: "テンプレート",
     icon: PictureInPicture2
+  },
+  {
+    href: "/api-keys",
+    label: "APIキー",
+    icon: Key
   },
   {
     href: "/generate-test",
