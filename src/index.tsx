@@ -8,44 +8,8 @@ import wasmModule from '../node_modules/@resvg/resvg-wasm/index_bg.wasm'
 import authApp from './auth/routes'
 import apiKeysApp from './api-keys/routes'
 import { requireApiKeyAuth } from './middleware/api-auth'
-import type { Bindings } from './types'
+import type { Bindings, TextElement, Template, RenderInput } from './types'
 import { arrayBufferToDataUrl } from './utils/encoding'
-
-// 後方互換性のためのエイリアス
-type Env = Bindings
-
-// Template types
-interface TextElement {
-  id: string
-  variable: string  // e.g., "title", "category"
-  x: number
-  y: number
-  width?: number
-  height?: number
-  maxWidth?: number  // Maximum width for text wrapping
-  maxHeight?: number  // Maximum height for text (triggers font size adjustment)
-  fontSize: number
-  minFontSize?: number  // Minimum font size when auto-adjusting (default: fontSize / 2)
-  fontFamily: 'Noto Sans JP' | 'Noto Serif JP'
-  color: string
-  fontWeight: 400 | 700
-  textAlign: 'left' | 'center' | 'right'
-}
-
-interface Template {
-  id: string
-  name: string
-  width: number
-  height: number
-  background: {
-    type: 'color' | 'image' | 'upload'
-    value: string  // color code or image URL
-  }
-  elements: TextElement[]
-  thumbnailUrl?: string  // サムネイル画像のURL
-  createdAt: string
-  updatedAt: string
-}
 
 // WASM初期化フラグ
 let wasmInitialized = false
@@ -169,21 +133,7 @@ async function toDataUrl(url: string, env?: Bindings): Promise<string> {
   const ct = res.headers.get('content-type') || 'image/png';
   return arrayBufferToDataUrl(buf, ct);
 }
-type RenderInput = {
-  template?: string | Template  // 'magazine-basic' or template object for preview
-  templateId?: string  // Template ID from KV
-  format?: 'png' | 'svg'
-  width?: number
-  height?: number
-  data: Record<string, string> | {
-    title: string
-    subtitle?: string
-    brand?: string
-    textColor?: string
-    bgColor?: string
-    cover?: { image_url: string; opacity?: number; fit?: 'cover' | 'contain' }
-  }
-}
+
 // Render template to SVG using Satori
 async function renderTemplateToSvg(template: Template, data: Record<string, string>, env?: Bindings): Promise<string> {
   const { width, height, background, elements } = template
