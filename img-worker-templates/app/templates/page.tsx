@@ -124,6 +124,12 @@ export default function テンプレートListPage() {
                        template.background.type === 'image' ? '画像URL' : 'アップロード'}
                     </span>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span>登録日:</span>
+                    <span className="font-medium text-foreground">
+                      {new Date(template.createdAt).toLocaleDateString('ja-JP')}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Actions */}
