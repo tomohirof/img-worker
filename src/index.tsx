@@ -6,6 +6,8 @@ import satori from 'satori'
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
 import wasmModule from '../node_modules/@resvg/resvg-wasm/index_bg.wasm'
 import authApp from './auth/routes'
+import apiKeysApp from './api-keys/routes'
+import { requireApiKeyAuth } from './middleware/api-auth'
 import type { Bindings } from './types'
 
 // 後方互換性のためのエイリアス
@@ -110,7 +112,7 @@ const app = new Hono<{ Bindings: Env }>()
 app.use('/*', cors({
   origin: (origin) => {
     // ローカル開発環境
-    if (origin === 'http://localhost:3000' || origin === 'http://localhost:3002') {
+    if (origin === 'http://localhost:3000' || origin === 'http://localhost:3002' || origin === 'http://localhost:1033') {
       return origin;
     }
 
@@ -132,6 +134,7 @@ app.use('/*', cors({
 
 // 認証ルート
 app.route('/auth', authApp)
+app.route('/api-keys', apiKeysApp)
 async function toDataUrl(url: string): Promise<string> {
   const res = await fetch(url)
   if (!res.ok) throw new Error('failed to fetch image')
@@ -270,12 +273,38 @@ async function templateMagazineBasic(input: Required<RenderInput>) {
   })
   return svg
 }
-function requireApiKey(c: any) {
+/**
+ * APIキー認証（後方互換性のため環境変数もサポート）
+ * ユーザー固有のAPIキーを優先し、見つからなければ環境変数のAPI_KEYもチェック
+ */
+async function requireApiKey(c: any) {
   const q = c.req.query('api_key')
   const h = c.req.header('x-api-key')
   const provided = h || q
-  if (!provided || provided !== c.env.API_KEY) return c.text('Unauthorized', 401)
-  return null
+
+  if (!provided) {
+    return c.text('Unauthorized: API key required', 401)
+  }
+
+  // まずユーザー固有のAPIキーをチェック
+  const { validateApiKey } = await import('./api-keys/api-key')
+  try {
+    const apiKeyData = await validateApiKey(c.env.TEMPLATES, provided)
+    if (apiKeyData) {
+      // 有効なユーザーAPIキーが見つかった
+      c.set('apiUserId', apiKeyData.userId)
+      return null
+    }
+  } catch (error) {
+    console.error('API key validation error:', error)
+  }
+
+  // フォールバック: 環境変数のAPI_KEYと比較（後方互換性）
+  if (c.env.API_KEY && provided === c.env.API_KEY) {
+    return null
+  }
+
+  return c.text('Unauthorized: Invalid API key', 401)
 }
 app.get('/', (c) => c.text('ok'))
 
@@ -481,7 +510,7 @@ app.get('/form', (c) => {
 })
 
 app.post('/render', async (c) => {
-  const unauthorized = requireApiKey(c)
+  const unauthorized = await requireApiKey(c)
   if (unauthorized) return unauthorized
 
   const body = (await c.req.json()) as RenderInput
