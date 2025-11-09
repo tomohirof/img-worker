@@ -1640,6 +1640,9 @@ app.get('/templates', async (c) => {
       }
     }
 
+    // Sort templates by createdAt in descending order (newest first)
+    templates.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
     return c.json(templates)
   } catch (error) {
     console.error('Failed to list templates:', error)
