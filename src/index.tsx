@@ -579,7 +579,7 @@ app.post('/render', async (c) => {
 
 // POST /images/upload - Upload image to R2
 app.post('/images/upload', async (c) => {
-  const unauthorized = requireApiKey(c)
+  const unauthorized = await requireApiKey(c)
   if (unauthorized) return unauthorized
 
   try {
@@ -660,7 +660,7 @@ app.get('/images/*', async (c) => {
 
 // DELETE /images/:key - Delete image from R2
 app.delete('/images/*', async (c) => {
-  const unauthorized = requireApiKey(c)
+  const unauthorized = await requireApiKey(c)
   if (unauthorized) return unauthorized
 
   const key = c.req.path.replace('/images/', '')
@@ -1558,7 +1558,7 @@ app.get('/templates/editor/:id', (c) => {
 
 // GET /templates - List all templates
 app.get('/templates', async (c) => {
-  const unauthorized = requireApiKey(c)
+  const unauthorized = await requireApiKey(c)
   if (unauthorized) return unauthorized
 
   try {
@@ -1585,7 +1585,7 @@ app.get('/templates', async (c) => {
 
 // GET /templates/:id - Get a specific template
 app.get('/templates/:id', async (c) => {
-  const unauthorized = requireApiKey(c)
+  const unauthorized = await requireApiKey(c)
   if (unauthorized) return unauthorized
 
   const id = c.req.param('id')
@@ -1598,7 +1598,7 @@ app.get('/templates/:id', async (c) => {
 
 // POST /templates - Create a new template
 app.post('/templates', async (c) => {
-  const unauthorized = requireApiKey(c)
+  const unauthorized = await requireApiKey(c)
   if (unauthorized) return unauthorized
 
   const body = await c.req.json() as Omit<Template, 'id' | 'createdAt' | 'updatedAt'>
@@ -1619,7 +1619,7 @@ app.post('/templates', async (c) => {
 
 // PUT /templates/:id - Update a template
 app.put('/templates/:id', async (c) => {
-  const unauthorized = requireApiKey(c)
+  const unauthorized = await requireApiKey(c)
   if (unauthorized) return unauthorized
 
   const id = c.req.param('id')
@@ -1643,7 +1643,7 @@ app.put('/templates/:id', async (c) => {
 
 // POST /templates/thumbnail - Generate thumbnail for a template
 app.post('/templates/thumbnail', async (c) => {
-  const unauthorized = requireApiKey(c)
+  const unauthorized = await requireApiKey(c)
   if (unauthorized) return unauthorized
 
   const body = await c.req.json() as { template: Template }
@@ -1689,7 +1689,7 @@ app.post('/templates/thumbnail', async (c) => {
 
 // DELETE /templates/:id - Delete a template
 app.delete('/templates/:id', async (c) => {
-  const unauthorized = requireApiKey(c)
+  const unauthorized = await requireApiKey(c)
   if (unauthorized) return unauthorized
 
   const id = c.req.param('id')
