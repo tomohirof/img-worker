@@ -641,7 +641,9 @@ app.post('/images/upload', async (c) => {
     })
 
     // Return public URL
-    const url = `${new URL(c.req.url).origin}/images/${key}`
+    // Use PUBLIC_IMAGE_BASE_URL if available (for production), otherwise use request origin (for local dev)
+    const baseUrl = c.env.PUBLIC_IMAGE_BASE_URL || new URL(c.req.url).origin
+    const url = `${baseUrl}/images/${key}`
 
     return c.json({
       success: true,

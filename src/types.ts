@@ -11,4 +11,7 @@ export interface Bindings {
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
   FRONTEND_BASE_URL?: string;
+
+  // 画像の公開URL用ベースURL
+  PUBLIC_IMAGE_BASE_URL?: string;
 }

@@ -5,6 +5,7 @@ compatibility_date = "2024-10-01"
 # Environment variables (non-sensitive)
 [vars]
 FRONTEND_BASE_URL = "https://img-worker-templates.pages.dev"
+PUBLIC_IMAGE_BASE_URL = "https://ogp-worker.tomohirof.workers.dev"
 ENVIRONMENT = "production"
 
 # KV Namespaces for template storage
