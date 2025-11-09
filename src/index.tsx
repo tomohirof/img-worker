@@ -285,7 +285,10 @@ async function renderTemplateToSvg(template: Template, data: Record<string, stri
       style={{
         width,
         height,
-        background: effectiveBackgroundType === 'color' ? backgroundValue : `url(${backgroundValue})`,
+        backgroundImage: effectiveBackgroundType === 'color' ? 'none' : `url(${backgroundValue})`,
+        backgroundColor: effectiveBackgroundType === 'color' ? backgroundValue : 'transparent',
+        backgroundSize: effectiveBackgroundType === 'color' ? 'auto' : 'cover',
+        backgroundPosition: effectiveBackgroundType === 'color' ? 'initial' : 'center',
         display: 'flex',
         position: 'relative',
       }}
