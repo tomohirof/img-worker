@@ -730,3 +730,159 @@ git log --oneline -5
 **状態**: 全ての変更がコミット済み。新しいコミットなし。
 
 ---
+
+# 今後のタスクリスト
+
+## 🎯 次のセッションで実施予定のタスク
+
+現時点で緊急のタスクはありません。画像アップロードとサムネイル生成機能が完全に動作しています。
+
+## 💡 将来的な改善提案（優先度: 低）
+
+### 1. 画像アップロード機能の強化
+
+#### 1.1 画像の破損チェック機能
+**目的**: アップロード時に画像ファイルが有効かどうかを検証
+**実装方針**:
+- アップロード時に画像ヘッダー（マジックバイト）を検証
+- 無効な画像ファイルを早期に検出してエラーを返す
+- 対象フォーマット: PNG, JPEG, GIF, WebP, SVG
+
+**参考実装**:
+```typescript
+function validateImageHeader(buffer: ArrayBuffer, mimeType: string): boolean {
+  const bytes = new Uint8Array(buffer);
+
+  // PNG: 89 50 4E 47
+  if (mimeType === 'image/png') {
+    return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47;
+  }
+
+  // JPEG: FF D8 FF
+  if (mimeType === 'image/jpeg') {
+    return bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
+  }
+
+  // 他のフォーマットも同様に...
+  return true;
+}
+```
+
+#### 1.2 画像のリサイズ機能
+**目的**: 大きすぎる画像を最適化してストレージコストを削減
+**実装方針**:
+- Cloudflare Workers環境で動作する画像リサイズライブラリを調査
+- または、Cloudflare Imagesサービスの利用を検討
+- 最大サイズ: 2000x2000px程度
+
+**検討すべきオプション**:
+1. **Cloudflare Images** - Cloudflare公式の画像最適化サービス
+2. **wasm-imagemagick** - WebAssembly版ImageMagick
+3. **sharp** (Workers互換版があれば)
+
+#### 1.3 ファイル名のサニタイズ強化
+**現状**: UUID を使用しているため既に安全
+**追加検討事項**:
+- 元のファイル名をメタデータとして保存（既に実装済み）
+- 拡張子の厳密なチェック
+
+### 2. 既存データの修正
+
+#### 2.1 localhost URLを持つ既存テンプレートの修正
+**対象**: セッション3以前に作成されたテンプレート
+**方法**:
+- 方法1: UIから手動で背景画像を再アップロード
+- 方法2: 移行スクリプトを作成（下記参照）
+
+**移行スクリプト案**:
+```typescript
+// scripts/migrate-localhost-urls.ts
+async function migrateLocalostUrls(env: Bindings) {
+  const templates = await getAllTemplates(env);
+
+  for (const template of templates) {
+    if (template.background?.value?.includes('localhost')) {
+      console.log(`Found template with localhost URL: ${template.id}`);
+      // Option 1: localhost URLを本番URLに置き換え
+      // Option 2: 背景画像を削除してユーザーに再アップロードを促す
+      // Option 3: R2から画像を取得して新しいキーで再保存
+    }
+  }
+}
+```
+
+### 3. 環境変数の管理強化
+
+#### 3.1 環境変数バリデーション
+**目的**: 起動時に必須の環境変数がセットされているか確認
+**実装方針**:
+```typescript
+function validateEnvironment(env: Bindings) {
+  const required = ['API_KEY', 'PUBLIC_IMAGE_BASE_URL'];
+  const missing = required.filter(key => !env[key]);
+
+  if (missing.length > 0) {
+    console.warn(`Missing environment variables: ${missing.join(', ')}`);
+  }
+}
+```
+
+### 4. R2公開URLの活用
+
+#### 4.1 R2カスタムドメインまたはR2.devドメインの利用
+**目的**: Workersを経由せずに直接R2から画像を配信
+**メリット**:
+- Workers のリクエスト数削減
+- レイテンシの低減
+- コスト削減
+
+**実装方針**:
+1. R2バケットにカスタムドメインを設定
+2. または、R2.devドメインを有効化
+3. `PUBLIC_IMAGE_BASE_URL`をR2の公開URLに変更
+
+### 5. パフォーマンス最適化
+
+#### 5.1 サムネイル生成のキャッシング
+**現状**: 毎回サムネイルを生成
+**改善案**:
+- 生成したサムネイルをR2にキャッシュ
+- テンプレート更新時のみ再生成
+
+#### 5.2 フォント読み込みの最適化
+**現状**: 初回リクエスト時にGoogle Fontsから読み込み
+**改善案**:
+- フォントファイルをR2に保存
+- Workers KVでキャッシュ
+
+### 6. テスト強化
+
+#### 6.1 E2Eテストの追加
+- 画像アップロードフローのテスト
+- サムネイル生成のテスト（背景画像あり/なし）
+- 認証失敗時の動作テスト
+
+#### 6.2 ユニットテストの追加
+- toDataUrl関数のテスト（チャンク処理の検証）
+- 画像バリデーション関数のテスト
+
+## 📊 セッション統計
+
+### 本日のセッション（2025-11-09）
+1. **セッション1**: APIキー管理機能の完全実装
+2. **セッション2**: 実装確認と検証
+3. **セッション3**: サムネイル生成問題の修正（本番環境）
+4. **セッション4**: ローカル環境での画像アップロード修正
+5. **セッション5**: 修正の動作確認と検証完了
+
+### 主な成果
+- ✅ APIキー管理機能の完全実装
+- ✅ 画像アップロード機能の修正（ローカル/本番環境の分離）
+- ✅ サムネイル生成機能の修正（背景画像対応、スタックオーバーフロー解決）
+- ✅ ユーザー確認: 「無事に実装されてます」
+
+### コミット数
+- 本日のコミット: 6件
+- 主要な修正: 画像アップロードとサムネイル生成の完全な動作確認
+
+---
