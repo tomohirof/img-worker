@@ -135,9 +135,35 @@ export function TemplateEditor() {
       // Open in new window
       const win = window.open('', '_blank');
       if (win) {
-        win.document.write(
-          `<img src="${url}" style="max-width: 100%; height: auto;">`
-        );
+        win.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="UTF-8">
+              <title>プレビュー - ${template.name}</title>
+              <style>
+                body {
+                  margin: 0;
+                  padding: 20px;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  min-height: 100vh;
+                  background-color: #f5f5f5;
+                }
+                img {
+                  max-width: 100%;
+                  height: auto;
+                  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                }
+              </style>
+            </head>
+            <body>
+              <img src="${url}" alt="プレビュー" />
+            </body>
+          </html>
+        `);
+        win.document.close();
       }
     } catch (error) {
       console.error('Preview error:', error);
