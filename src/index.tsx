@@ -285,14 +285,26 @@ async function renderTemplateToSvg(template: Template, data: Record<string, stri
       style={{
         width,
         height,
-        backgroundImage: effectiveBackgroundType === 'color' ? 'none' : `url(${backgroundValue})`,
         backgroundColor: effectiveBackgroundType === 'color' ? backgroundValue : 'transparent',
-        backgroundSize: effectiveBackgroundType === 'color' ? 'auto' : 'cover',
-        backgroundPosition: effectiveBackgroundType === 'color' ? 'initial' : 'center',
         display: 'flex',
         position: 'relative',
       }}
     >
+      {/* Background image using <img> tag for better Satori support */}
+      {effectiveBackgroundType !== 'color' && backgroundValue && (
+        <img
+          src={backgroundValue}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center',
+          }}
+        />
+      )}
       {jsxElements}
     </div>
   )
