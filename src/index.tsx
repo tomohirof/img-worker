@@ -125,7 +125,7 @@ app.use('/*', cors({
     // 許可されていないoriginの場合
     return null;
   },
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'x-api-key', 'Authorization'],
   exposeHeaders: ['Content-Length'],
   maxAge: 600,
