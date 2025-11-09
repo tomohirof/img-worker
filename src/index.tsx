@@ -162,6 +162,18 @@ type RenderInput = {
 async function renderTemplateToSvg(template: Template, data: Record<string, string>): Promise<string> {
   const { width, height, background, elements } = template
 
+  // Convert background image URL to Data URL if needed
+  let backgroundValue = background.value
+  if (background.type === 'image' || background.type === 'upload') {
+    try {
+      backgroundValue = await toDataUrl(background.value)
+    } catch (error) {
+      console.error('Failed to convert background image to Data URL:', error)
+      // Fallback to white background if image fails to load
+      backgroundValue = '#ffffff'
+    }
+  }
+
   // Create JSX elements from template definition
   const jsxElements = elements.map(el => {
     const value = data[el.variable] || ''
@@ -223,7 +235,7 @@ async function renderTemplateToSvg(template: Template, data: Record<string, stri
       style={{
         width,
         height,
-        background: background.type === 'color' ? background.value : `url(${background.value})`,
+        background: background.type === 'color' ? background.value : `url(${backgroundValue})`,
         display: 'flex',
         position: 'relative',
       }}
