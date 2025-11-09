@@ -153,7 +153,15 @@ async function toDataUrl(url: string, env?: Bindings): Promise<string> {
       }
 
       const buf = await object.arrayBuffer();
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      // Convert ArrayBuffer to base64 in chunks to avoid stack overflow
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      const chunkSize = 0x8000; // 32KB chunks
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        binary += String.fromCharCode(...chunk);
+      }
+      const b64 = btoa(binary);
       const ct = object.httpMetadata?.contentType || 'image/png';
       return `data:${ct};base64,${b64}`;
     } catch (error) {
@@ -166,7 +174,15 @@ async function toDataUrl(url: string, env?: Bindings): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) throw new Error('failed to fetch image');
   const buf = await res.arrayBuffer();
-  const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+  // Convert ArrayBuffer to base64 in chunks to avoid stack overflow
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunkSize = 0x8000; // 32KB chunks
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    binary += String.fromCharCode(...chunk);
+  }
+  const b64 = btoa(binary);
   const ct = res.headers.get('content-type') || 'image/png';
   return `data:${ct};base64,${b64}`;
 }
