@@ -9,6 +9,7 @@ import authApp from './auth/routes'
 import apiKeysApp from './api-keys/routes'
 import { requireApiKeyAuth } from './middleware/api-auth'
 import type { Bindings } from './types'
+import { arrayBufferToDataUrl } from './utils/encoding'
 
 // 後方互換性のためのエイリアス
 type Env = Bindings
@@ -153,17 +154,8 @@ async function toDataUrl(url: string, env?: Bindings): Promise<string> {
       }
 
       const buf = await object.arrayBuffer();
-      // Convert ArrayBuffer to base64 in chunks to avoid stack overflow
-      const bytes = new Uint8Array(buf);
-      let binary = '';
-      const chunkSize = 0x8000; // 32KB chunks
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-        binary += String.fromCharCode(...chunk);
-      }
-      const b64 = btoa(binary);
       const ct = object.httpMetadata?.contentType || 'image/png';
-      return `data:${ct};base64,${b64}`;
+      return arrayBufferToDataUrl(buf, ct);
     } catch (error) {
       console.error('Failed to fetch image from R2:', error);
       throw error;
@@ -174,17 +166,8 @@ async function toDataUrl(url: string, env?: Bindings): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) throw new Error('failed to fetch image');
   const buf = await res.arrayBuffer();
-  // Convert ArrayBuffer to base64 in chunks to avoid stack overflow
-  const bytes = new Uint8Array(buf);
-  let binary = '';
-  const chunkSize = 0x8000; // 32KB chunks
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-    binary += String.fromCharCode(...chunk);
-  }
-  const b64 = btoa(binary);
   const ct = res.headers.get('content-type') || 'image/png';
-  return `data:${ct};base64,${b64}`;
+  return arrayBufferToDataUrl(buf, ct);
 }
 type RenderInput = {
   template?: string | Template  // 'magazine-basic' or template object for preview
@@ -418,7 +401,7 @@ app.get('/form', (c) => {
   <form id="renderForm">
     <div class="form-group">
       <label for="apiKey">APIキー *</label>
-      <input type="password" id="apiKey" required placeholder="APIキーを入力してください" value="cwe8yxq4mtc-HCZ9ebm">
+      <input type="password" id="apiKey" required placeholder="APIキーを入力してください">
     </div>
 
     <div class="form-group">
@@ -824,7 +807,8 @@ app.get('/templates/ui', (c) => {
   </div>
 
   <script>
-    const API_KEY = 'cwe8yxq4mtc-HCZ9ebm';
+    const API_KEY = sessionStorage.getItem('ogp_api_key') || prompt('APIキーを入力してください');
+    if (API_KEY) sessionStorage.setItem('ogp_api_key', API_KEY);
     let templates = [];
     let editingTemplateId = null;
 
@@ -1071,7 +1055,8 @@ app.get('/templates/editor', (c) => {
   </div>
 
   <script>
-    const API_KEY = 'cwe8yxq4mtc-HCZ9ebm';
+    const API_KEY = sessionStorage.getItem('ogp_api_key') || prompt('APIキーを入力してください');
+    if (API_KEY) sessionStorage.setItem('ogp_api_key', API_KEY);
 
     // State
     let templateState = {
