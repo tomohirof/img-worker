@@ -28,50 +28,60 @@ let fontSerifData: ArrayBuffer | null = null
 
 // Google Fonts APIからフォントを読み込む
 async function loadFont(family: string, weight: number): Promise<ArrayBuffer> {
-  // Google Fonts CSS APIを使ってフォントURLを取得
-  const familyParam = family.replace(/ /g, '+')
-  const cssUrl = `https://fonts.googleapis.com/css2?family=${familyParam}:wght@${weight}&display=swap`
+  try {
+    // Google Fonts CSS APIを使ってフォントURLを取得
+    const familyParam = family.replace(/ /g, '+')
+    const cssUrl = `https://fonts.googleapis.com/css2?family=${familyParam}:wght@${weight}&display=swap`
 
-  const cssResponse = await fetch(cssUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    const cssResponse = await fetch(cssUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    })
+
+    if (!cssResponse.ok) {
+      throw new Error(`Failed to fetch font CSS for ${family}: ${cssResponse.status} ${cssResponse.statusText}`)
     }
-  })
 
-  if (!cssResponse.ok) {
-    throw new Error(`Failed to fetch font CSS for ${family}`)
+    const css = await cssResponse.text()
+
+    // CSSからフォントファイルのURLを抽出
+    const urlMatch = css.match(/url\(([^)]+)\)/)
+    if (!urlMatch) {
+      throw new Error(`Failed to extract font URL from CSS for ${family}`)
+    }
+
+    const fontUrl = urlMatch[1]
+
+    // フォントファイルをダウンロード
+    const fontResponse = await fetch(fontUrl)
+    if (!fontResponse.ok) {
+      throw new Error(`Failed to fetch font file for ${family}: ${fontResponse.status} ${fontResponse.statusText}`)
+    }
+
+    return await fontResponse.arrayBuffer()
+  } catch (error) {
+    console.error(`Error loading font ${family} (weight: ${weight}):`, error)
+    throw error
   }
-
-  const css = await cssResponse.text()
-
-  // CSSからフォントファイルのURLを抽出
-  const urlMatch = css.match(/url\(([^)]+)\)/)
-  if (!urlMatch) {
-    throw new Error(`Failed to extract font URL from CSS for ${family}`)
-  }
-
-  const fontUrl = urlMatch[1]
-
-  // フォントファイルをダウンロード
-  const fontResponse = await fetch(fontUrl)
-  if (!fontResponse.ok) {
-    throw new Error(`Failed to fetch font file for ${family}`)
-  }
-
-  return await fontResponse.arrayBuffer()
 }
 
 // フォントを初期化（一度だけ読み込み）
 async function ensureFontsLoaded() {
-  if (!fontSansData) {
-    fontSansData = await loadFont('Noto Sans JP', 400)
-  }
-  if (!fontSerifData) {
-    fontSerifData = await loadFont('Noto Serif JP', 700)
+  try {
+    if (!fontSansData) {
+      fontSansData = await loadFont('Noto Sans JP', 400)
+    }
+    if (!fontSerifData) {
+      fontSerifData = await loadFont('Noto Serif JP', 700)
+    }
+  } catch (error) {
+    console.error('Failed to load fonts:', error)
+    throw new Error('フォントの読み込みに失敗しました')
   }
 }
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<{ Bindings: Bindings }>()
 
 // CORS設定
 app.use('/*', cors({
@@ -523,66 +533,84 @@ app.post('/render', async (c) => {
   const unauthorized = await requireApiKey(c)
   if (unauthorized) return unauthorized
 
-  const body = (await c.req.json()) as RenderInput
-  const format = body.format || 'png'
+  try {
+    const body = (await c.req.json()) as RenderInput
+    const format = body.format || 'png'
 
-  let svg: string
+    let svg: string
 
-  // Check if template object is provided directly (for preview)
-  if (body.template && typeof body.template === 'object') {
-    const template = body.template as Template
-    svg = await renderTemplateToSvg(template, body.data as Record<string, string>, c.env)
-  }
-  // Check if using template ID from KV
-  else if (body.templateId) {
-    // Load template from KV
-    const template = await c.env.TEMPLATES.get(`template:${body.templateId}`, 'json') as Template
-    if (!template) {
-      return c.json({ error: 'Template not found' }, 404)
+    // Check if template object is provided directly (for preview)
+    if (body.template && typeof body.template === 'object') {
+      const template = body.template as Template
+      svg = await renderTemplateToSvg(template, body.data as Record<string, string>, c.env)
     }
-
-    // Render using template
-    svg = await renderTemplateToSvg(template, body.data as Record<string, string>, c.env)
-  }
-  // Check if using template name
-  else if (body.template && typeof body.template === 'string' && body.template !== 'magazine-basic') {
-    // Search for template by name
-    const keys = await c.env.TEMPLATES.list({ prefix: 'template:' })
-    let foundTemplate: Template | null = null
-
-    for (const key of keys.keys) {
-      const template = await c.env.TEMPLATES.get(key.name, 'json') as Template
-      if (template && template.name === body.template) {
-        foundTemplate = template
-        break
+    // Check if using template ID from KV
+    else if (body.templateId) {
+      // Load template from KV
+      const template = await c.env.TEMPLATES.get(`template:${body.templateId}`, 'json') as Template
+      if (!template) {
+        return c.json({ error: 'Template not found' }, 404)
       }
+
+      // Render using template
+      svg = await renderTemplateToSvg(template, body.data as Record<string, string>, c.env)
+    }
+    // Check if using template name
+    else if (body.template && typeof body.template === 'string' && body.template !== 'magazine-basic') {
+      // Search for template by name
+      const keys = await c.env.TEMPLATES.list({ prefix: 'template:' })
+      let foundTemplate: Template | null = null
+
+      for (const key of keys.keys) {
+        const template = await c.env.TEMPLATES.get(key.name, 'json') as Template
+        if (template && template.name === body.template) {
+          foundTemplate = template
+          break
+        }
+      }
+
+      if (!foundTemplate) {
+        return c.json({ error: `Template '${body.template}' not found` }, 404)
+      }
+
+      // Render using template
+      svg = await renderTemplateToSvg(foundTemplate, body.data as Record<string, string>, c.env)
+    }
+    // Use legacy magazine-basic template
+    else {
+      const width = Math.max(200, Math.min(4096, body.width ?? 1200))
+      const height = Math.max(200, Math.min(4096, body.height ?? 630))
+      const input: Required<RenderInput> = {
+        template: (body.template as string) || 'magazine-basic',
+        format, width, height,
+        data: body.data as any
+      }
+      svg = await templateMagazineBasic(input, c.env)
     }
 
-    if (!foundTemplate) {
-      return c.json({ error: `Template '${body.template}' not found` }, 404)
+    if (format === 'svg') return new Response(svg, { headers: { 'Content-Type': 'image/svg+xml' } })
+
+    await ensureWasmInitialized()
+    const resvg = new Resvg(svg)
+    const png = resvg.render().asPng()
+    return new Response(png, { headers: { 'Content-Type': 'image/png' } })
+  } catch (error) {
+    console.error('Error in /render endpoint:', error)
+
+    // JSONパースエラーの場合
+    if (error instanceof SyntaxError) {
+      return c.json({
+        error: 'BAD_REQUEST',
+        message: 'リクエストボディのJSONが不正です'
+      }, 400)
     }
 
-    // Render using template
-    svg = await renderTemplateToSvg(foundTemplate, body.data as Record<string, string>, c.env)
+    // その他のエラー
+    return c.json({
+      error: 'INTERNAL_SERVER_ERROR',
+      message: error instanceof Error ? error.message : '画像生成中にエラーが発生しました'
+    }, 500)
   }
-  // Use legacy magazine-basic template
-  else {
-    const width = Math.max(200, Math.min(4096, body.width ?? 1200))
-    const height = Math.max(200, Math.min(4096, body.height ?? 630))
-    const input: Required<RenderInput> = {
-      template: (body.template as string) || 'magazine-basic',
-      format, width, height,
-      data: body.data as any
-    }
-    svg = await templateMagazineBasic(input, c.env)
-  }
-
-  if (format === 'svg') return new Response(svg, { headers: { 'Content-Type': 'image/svg+xml' } })
-
-  await ensureWasmInitialized()
-  const resvg = new Resvg(svg)
-  const png = resvg.render().asPng()
-  return new Response(png, { headers: { 'Content-Type': 'image/png' } })
 })
 
 // Image Upload APIs
