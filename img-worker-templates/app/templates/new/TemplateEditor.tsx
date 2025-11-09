@@ -17,7 +17,7 @@ export function TemplateEditor() {
 
   const [template, setTemplate] = useState<Template>({
     id: '',
-    name: '',
+    name: '無題のテンプレート',
     width: 1200,
     height: 630,
     background: { type: 'upload', value: '' },
