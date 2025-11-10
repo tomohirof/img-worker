@@ -8,6 +8,15 @@ let fontSansData: ArrayBuffer | null = null
 let fontSerifData: ArrayBuffer | null = null
 
 /**
+ * テスト用: フォントキャッシュをリセット
+ * @internal テスト専用関数
+ */
+export function __resetFontsForTesting() {
+  fontSansData = null
+  fontSerifData = null
+}
+
+/**
  * Google Fonts APIからフォントを読み込む
  * @param family フォントファミリー名（例: "Noto Sans JP"）
  * @param weight フォントウェイト（例: 400, 700）
