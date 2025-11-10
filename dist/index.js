@@ -7378,198 +7378,6 @@ var require_dist = __commonJS({
   }
 });
 
-// src/api-keys/types.ts
-var KV_KEYS, MAX_API_KEYS_PER_USER, API_KEY_LENGTH;
-var init_types = __esm({
-  "src/api-keys/types.ts"() {
-    "use strict";
-    KV_KEYS = {
-      /** APIキー情報: apikey:id:{keyId} */
-      apiKeyById: /* @__PURE__ */ __name((keyId) => `apikey:id:${keyId}`, "apiKeyById"),
-      /** ハッシュからキーIDへのインデックス: apikey:hash:{keyHash} */
-      apiKeyByHash: /* @__PURE__ */ __name((keyHash) => `apikey:hash:${keyHash}`, "apiKeyByHash"),
-      /** ユーザーのAPIキーID一覧: user:apikeys:{userId} */
-      userApiKeys: /* @__PURE__ */ __name((userId) => `user:apikeys:${userId}`, "userApiKeys")
-    };
-    MAX_API_KEYS_PER_USER = 10;
-    API_KEY_LENGTH = 64;
-  }
-});
-
-// src/api-keys/utils.ts
-function generateApiKey() {
-  const bytes = crypto.getRandomValues(new Uint8Array(API_KEY_LENGTH / 2));
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-async function hashApiKey(apiKey) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(apiKey);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-function createKeyPreview(apiKey) {
-  if (apiKey.length < 8) {
-    return "****";
-  }
-  const visiblePart = apiKey.slice(-8);
-  return `****...${visiblePart}`;
-}
-var init_utils = __esm({
-  "src/api-keys/utils.ts"() {
-    "use strict";
-    init_types();
-    __name(generateApiKey, "generateApiKey");
-    __name(hashApiKey, "hashApiKey");
-    __name(createKeyPreview, "createKeyPreview");
-  }
-});
-
-// src/api-keys/api-key.ts
-var api_key_exports = {};
-__export(api_key_exports, {
-  createApiKey: () => createApiKey,
-  deleteApiKey: () => deleteApiKey,
-  getApiKeyById: () => getApiKeyById,
-  getUserApiKeys: () => getUserApiKeys,
-  recordLastUsed: () => recordLastUsed,
-  toApiKeyInfo: () => toApiKeyInfo,
-  updateApiKey: () => updateApiKey,
-  validateApiKey: () => validateApiKey
-});
-async function createApiKey(kv, userId, name) {
-  const existingKeys = await getUserApiKeys(kv, userId);
-  if (existingKeys.length >= MAX_API_KEYS_PER_USER) {
-    throw new Error(
-      `API\u30AD\u30FC\u306E\u4F5C\u6210\u4E0A\u9650\uFF08${MAX_API_KEYS_PER_USER}\u500B\uFF09\u306B\u9054\u3057\u3066\u3044\u307E\u3059`
-    );
-  }
-  const apiKey = generateApiKey();
-  const keyHash = await hashApiKey(apiKey);
-  const keyId = crypto.randomUUID();
-  const now = Date.now();
-  const apiKeyData = {
-    keyId,
-    userId,
-    name,
-    keyHash,
-    createdAt: now,
-    isActive: true
-  };
-  const userKeysData = await kv.get(KV_KEYS.userApiKeys(userId));
-  const userKeys = userKeysData ? JSON.parse(userKeysData) : [];
-  userKeys.push(keyId);
-  await Promise.all([
-    kv.put(KV_KEYS.apiKeyById(keyId), JSON.stringify(apiKeyData)),
-    kv.put(KV_KEYS.apiKeyByHash(keyHash), keyId),
-    kv.put(KV_KEYS.userApiKeys(userId), JSON.stringify(userKeys))
-  ]);
-  return {
-    ...toApiKeyInfo(apiKeyData, apiKey),
-    apiKey
-    // 生成されたAPIキー（この時だけ返す）
-  };
-}
-async function getApiKeyById(kv, keyId) {
-  const data = await kv.get(KV_KEYS.apiKeyById(keyId));
-  if (!data) {
-    return null;
-  }
-  return JSON.parse(data);
-}
-async function validateApiKey(kv, apiKey) {
-  const keyHash = await hashApiKey(apiKey);
-  const keyId = await kv.get(KV_KEYS.apiKeyByHash(keyHash));
-  if (!keyId) {
-    return null;
-  }
-  const apiKeyData = await getApiKeyById(kv, keyId);
-  if (!apiKeyData || !apiKeyData.isActive) {
-    return null;
-  }
-  return apiKeyData;
-}
-async function getUserApiKeys(kv, userId) {
-  const userKeysData = await kv.get(KV_KEYS.userApiKeys(userId));
-  if (!userKeysData) {
-    return [];
-  }
-  const keyIds = JSON.parse(userKeysData);
-  const keys = await Promise.all(
-    keyIds.map((keyId) => getApiKeyById(kv, keyId))
-  );
-  return keys.filter((key) => key !== null).map((key) => toApiKeyInfo(key));
-}
-async function updateApiKey(kv, keyId, updates) {
-  const apiKeyData = await getApiKeyById(kv, keyId);
-  if (!apiKeyData) {
-    return null;
-  }
-  if (updates.name !== void 0) {
-    apiKeyData.name = updates.name;
-  }
-  if (updates.isActive !== void 0) {
-    apiKeyData.isActive = updates.isActive;
-  }
-  await kv.put(KV_KEYS.apiKeyById(keyId), JSON.stringify(apiKeyData));
-  return toApiKeyInfo(apiKeyData);
-}
-async function deleteApiKey(kv, keyId) {
-  const apiKeyData = await getApiKeyById(kv, keyId);
-  if (!apiKeyData) {
-    return false;
-  }
-  const userKeysData = await kv.get(KV_KEYS.userApiKeys(apiKeyData.userId));
-  if (userKeysData) {
-    const userKeys = JSON.parse(userKeysData);
-    const updatedKeys = userKeys.filter((id) => id !== keyId);
-    await kv.put(
-      KV_KEYS.userApiKeys(apiKeyData.userId),
-      JSON.stringify(updatedKeys)
-    );
-  }
-  await Promise.all([
-    kv.delete(KV_KEYS.apiKeyById(keyId)),
-    kv.delete(KV_KEYS.apiKeyByHash(apiKeyData.keyHash))
-  ]);
-  return true;
-}
-async function recordLastUsed(kv, keyId) {
-  const apiKeyData = await getApiKeyById(kv, keyId);
-  if (!apiKeyData) {
-    return;
-  }
-  apiKeyData.lastUsedAt = Date.now();
-  await kv.put(KV_KEYS.apiKeyById(keyId), JSON.stringify(apiKeyData));
-}
-function toApiKeyInfo(apiKey, originalKey) {
-  return {
-    keyId: apiKey.keyId,
-    userId: apiKey.userId,
-    name: apiKey.name,
-    keyPreview: originalKey ? createKeyPreview(originalKey) : "****...****",
-    // 元のキーがない場合はマスクのみ
-    createdAt: apiKey.createdAt,
-    lastUsedAt: apiKey.lastUsedAt,
-    isActive: apiKey.isActive
-  };
-}
-var init_api_key = __esm({
-  "src/api-keys/api-key.ts"() {
-    "use strict";
-    init_types();
-    init_utils();
-    __name(createApiKey, "createApiKey");
-    __name(getApiKeyById, "getApiKeyById");
-    __name(validateApiKey, "validateApiKey");
-    __name(getUserApiKeys, "getUserApiKeys");
-    __name(updateApiKey, "updateApiKey");
-    __name(deleteApiKey, "deleteApiKey");
-    __name(recordLastUsed, "recordLastUsed");
-    __name(toApiKeyInfo, "toApiKeyInfo");
-  }
-});
-
 // node_modules/react/cjs/react.development.js
 var require_react_development = __commonJS({
   "node_modules/react/cjs/react.development.js"(exports2, module) {
@@ -19718,614 +19526,6 @@ var cors = /* @__PURE__ */ __name((options) => {
     }
   }, "cors2");
 }, "cors");
-
-// node_modules/@resvg/resvg-wasm/index.mjs
-var wasm;
-var heap = new Array(128).fill(void 0);
-heap.push(void 0, null, true, false);
-var heap_next = heap.length;
-function addHeapObject(obj) {
-  if (heap_next === heap.length)
-    heap.push(heap.length + 1);
-  const idx = heap_next;
-  heap_next = heap[idx];
-  heap[idx] = obj;
-  return idx;
-}
-__name(addHeapObject, "addHeapObject");
-function getObject(idx) {
-  return heap[idx];
-}
-__name(getObject, "getObject");
-function dropObject(idx) {
-  if (idx < 132)
-    return;
-  heap[idx] = heap_next;
-  heap_next = idx;
-}
-__name(dropObject, "dropObject");
-function takeObject(idx) {
-  const ret = getObject(idx);
-  dropObject(idx);
-  return ret;
-}
-__name(takeObject, "takeObject");
-var WASM_VECTOR_LEN = 0;
-var cachedUint8Memory0 = null;
-function getUint8Memory0() {
-  if (cachedUint8Memory0 === null || cachedUint8Memory0.byteLength === 0) {
-    cachedUint8Memory0 = new Uint8Array(wasm.memory.buffer);
-  }
-  return cachedUint8Memory0;
-}
-__name(getUint8Memory0, "getUint8Memory0");
-var cachedTextEncoder = typeof TextEncoder !== "undefined" ? new TextEncoder("utf-8") : { encode: /* @__PURE__ */ __name(() => {
-  throw Error("TextEncoder not available");
-}, "encode") };
-var encodeString = typeof cachedTextEncoder.encodeInto === "function" ? function(arg, view) {
-  return cachedTextEncoder.encodeInto(arg, view);
-} : function(arg, view) {
-  const buf = cachedTextEncoder.encode(arg);
-  view.set(buf);
-  return {
-    read: arg.length,
-    written: buf.length
-  };
-};
-function passStringToWasm0(arg, malloc, realloc) {
-  if (realloc === void 0) {
-    const buf = cachedTextEncoder.encode(arg);
-    const ptr2 = malloc(buf.length, 1) >>> 0;
-    getUint8Memory0().subarray(ptr2, ptr2 + buf.length).set(buf);
-    WASM_VECTOR_LEN = buf.length;
-    return ptr2;
-  }
-  let len = arg.length;
-  let ptr = malloc(len, 1) >>> 0;
-  const mem = getUint8Memory0();
-  let offset = 0;
-  for (; offset < len; offset++) {
-    const code = arg.charCodeAt(offset);
-    if (code > 127)
-      break;
-    mem[ptr + offset] = code;
-  }
-  if (offset !== len) {
-    if (offset !== 0) {
-      arg = arg.slice(offset);
-    }
-    ptr = realloc(ptr, len, len = offset + arg.length * 3, 1) >>> 0;
-    const view = getUint8Memory0().subarray(ptr + offset, ptr + len);
-    const ret = encodeString(arg, view);
-    offset += ret.written;
-    ptr = realloc(ptr, len, offset, 1) >>> 0;
-  }
-  WASM_VECTOR_LEN = offset;
-  return ptr;
-}
-__name(passStringToWasm0, "passStringToWasm0");
-function isLikeNone(x) {
-  return x === void 0 || x === null;
-}
-__name(isLikeNone, "isLikeNone");
-var cachedInt32Memory0 = null;
-function getInt32Memory0() {
-  if (cachedInt32Memory0 === null || cachedInt32Memory0.byteLength === 0) {
-    cachedInt32Memory0 = new Int32Array(wasm.memory.buffer);
-  }
-  return cachedInt32Memory0;
-}
-__name(getInt32Memory0, "getInt32Memory0");
-var cachedTextDecoder = typeof TextDecoder !== "undefined" ? new TextDecoder("utf-8", { ignoreBOM: true, fatal: true }) : { decode: /* @__PURE__ */ __name(() => {
-  throw Error("TextDecoder not available");
-}, "decode") };
-if (typeof TextDecoder !== "undefined") {
-  cachedTextDecoder.decode();
-}
-function getStringFromWasm0(ptr, len) {
-  ptr = ptr >>> 0;
-  return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
-}
-__name(getStringFromWasm0, "getStringFromWasm0");
-function _assertClass(instance, klass) {
-  if (!(instance instanceof klass)) {
-    throw new Error(`expected instance of ${klass.name}`);
-  }
-  return instance.ptr;
-}
-__name(_assertClass, "_assertClass");
-function handleError(f, args) {
-  try {
-    return f.apply(this, args);
-  } catch (e) {
-    wasm.__wbindgen_exn_store(addHeapObject(e));
-  }
-}
-__name(handleError, "handleError");
-var BBoxFinalization = typeof FinalizationRegistry === "undefined" ? { register: /* @__PURE__ */ __name(() => {
-}, "register"), unregister: /* @__PURE__ */ __name(() => {
-}, "unregister") } : new FinalizationRegistry((ptr) => wasm.__wbg_bbox_free(ptr >>> 0));
-var BBox = class _BBox {
-  static {
-    __name(this, "_BBox");
-  }
-  static __wrap(ptr) {
-    ptr = ptr >>> 0;
-    const obj = Object.create(_BBox.prototype);
-    obj.__wbg_ptr = ptr;
-    BBoxFinalization.register(obj, obj.__wbg_ptr, obj);
-    return obj;
-  }
-  __destroy_into_raw() {
-    const ptr = this.__wbg_ptr;
-    this.__wbg_ptr = 0;
-    BBoxFinalization.unregister(this);
-    return ptr;
-  }
-  free() {
-    const ptr = this.__destroy_into_raw();
-    wasm.__wbg_bbox_free(ptr);
-  }
-  /**
-  * @returns {number}
-  */
-  get x() {
-    const ret = wasm.__wbg_get_bbox_x(this.__wbg_ptr);
-    return ret;
-  }
-  /**
-  * @param {number} arg0
-  */
-  set x(arg0) {
-    wasm.__wbg_set_bbox_x(this.__wbg_ptr, arg0);
-  }
-  /**
-  * @returns {number}
-  */
-  get y() {
-    const ret = wasm.__wbg_get_bbox_y(this.__wbg_ptr);
-    return ret;
-  }
-  /**
-  * @param {number} arg0
-  */
-  set y(arg0) {
-    wasm.__wbg_set_bbox_y(this.__wbg_ptr, arg0);
-  }
-  /**
-  * @returns {number}
-  */
-  get width() {
-    const ret = wasm.__wbg_get_bbox_width(this.__wbg_ptr);
-    return ret;
-  }
-  /**
-  * @param {number} arg0
-  */
-  set width(arg0) {
-    wasm.__wbg_set_bbox_width(this.__wbg_ptr, arg0);
-  }
-  /**
-  * @returns {number}
-  */
-  get height() {
-    const ret = wasm.__wbg_get_bbox_height(this.__wbg_ptr);
-    return ret;
-  }
-  /**
-  * @param {number} arg0
-  */
-  set height(arg0) {
-    wasm.__wbg_set_bbox_height(this.__wbg_ptr, arg0);
-  }
-};
-var RenderedImageFinalization = typeof FinalizationRegistry === "undefined" ? { register: /* @__PURE__ */ __name(() => {
-}, "register"), unregister: /* @__PURE__ */ __name(() => {
-}, "unregister") } : new FinalizationRegistry((ptr) => wasm.__wbg_renderedimage_free(ptr >>> 0));
-var RenderedImage = class _RenderedImage {
-  static {
-    __name(this, "_RenderedImage");
-  }
-  static __wrap(ptr) {
-    ptr = ptr >>> 0;
-    const obj = Object.create(_RenderedImage.prototype);
-    obj.__wbg_ptr = ptr;
-    RenderedImageFinalization.register(obj, obj.__wbg_ptr, obj);
-    return obj;
-  }
-  __destroy_into_raw() {
-    const ptr = this.__wbg_ptr;
-    this.__wbg_ptr = 0;
-    RenderedImageFinalization.unregister(this);
-    return ptr;
-  }
-  free() {
-    const ptr = this.__destroy_into_raw();
-    wasm.__wbg_renderedimage_free(ptr);
-  }
-  /**
-  * Get the PNG width
-  * @returns {number}
-  */
-  get width() {
-    const ret = wasm.renderedimage_width(this.__wbg_ptr);
-    return ret >>> 0;
-  }
-  /**
-  * Get the PNG height
-  * @returns {number}
-  */
-  get height() {
-    const ret = wasm.renderedimage_height(this.__wbg_ptr);
-    return ret >>> 0;
-  }
-  /**
-  * Write the image data to Uint8Array
-  * @returns {Uint8Array}
-  */
-  asPng() {
-    try {
-      const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-      wasm.renderedimage_asPng(retptr, this.__wbg_ptr);
-      var r0 = getInt32Memory0()[retptr / 4 + 0];
-      var r1 = getInt32Memory0()[retptr / 4 + 1];
-      var r2 = getInt32Memory0()[retptr / 4 + 2];
-      if (r2) {
-        throw takeObject(r1);
-      }
-      return takeObject(r0);
-    } finally {
-      wasm.__wbindgen_add_to_stack_pointer(16);
-    }
-  }
-  /**
-  * Get the RGBA pixels of the image
-  * @returns {Uint8Array}
-  */
-  get pixels() {
-    const ret = wasm.renderedimage_pixels(this.__wbg_ptr);
-    return takeObject(ret);
-  }
-};
-var ResvgFinalization = typeof FinalizationRegistry === "undefined" ? { register: /* @__PURE__ */ __name(() => {
-}, "register"), unregister: /* @__PURE__ */ __name(() => {
-}, "unregister") } : new FinalizationRegistry((ptr) => wasm.__wbg_resvg_free(ptr >>> 0));
-var Resvg = class {
-  static {
-    __name(this, "Resvg");
-  }
-  __destroy_into_raw() {
-    const ptr = this.__wbg_ptr;
-    this.__wbg_ptr = 0;
-    ResvgFinalization.unregister(this);
-    return ptr;
-  }
-  free() {
-    const ptr = this.__destroy_into_raw();
-    wasm.__wbg_resvg_free(ptr);
-  }
-  /**
-  * @param {Uint8Array | string} svg
-  * @param {string | undefined} [options]
-  * @param {Array<any> | undefined} [custom_font_buffers]
-  */
-  constructor(svg, options, custom_font_buffers) {
-    try {
-      const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-      var ptr0 = isLikeNone(options) ? 0 : passStringToWasm0(options, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-      var len0 = WASM_VECTOR_LEN;
-      wasm.resvg_new(retptr, addHeapObject(svg), ptr0, len0, isLikeNone(custom_font_buffers) ? 0 : addHeapObject(custom_font_buffers));
-      var r0 = getInt32Memory0()[retptr / 4 + 0];
-      var r1 = getInt32Memory0()[retptr / 4 + 1];
-      var r2 = getInt32Memory0()[retptr / 4 + 2];
-      if (r2) {
-        throw takeObject(r1);
-      }
-      this.__wbg_ptr = r0 >>> 0;
-      return this;
-    } finally {
-      wasm.__wbindgen_add_to_stack_pointer(16);
-    }
-  }
-  /**
-  * Get the SVG width
-  * @returns {number}
-  */
-  get width() {
-    const ret = wasm.resvg_width(this.__wbg_ptr);
-    return ret;
-  }
-  /**
-  * Get the SVG height
-  * @returns {number}
-  */
-  get height() {
-    const ret = wasm.resvg_height(this.__wbg_ptr);
-    return ret;
-  }
-  /**
-  * Renders an SVG in Wasm
-  * @returns {RenderedImage}
-  */
-  render() {
-    try {
-      const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-      wasm.resvg_render(retptr, this.__wbg_ptr);
-      var r0 = getInt32Memory0()[retptr / 4 + 0];
-      var r1 = getInt32Memory0()[retptr / 4 + 1];
-      var r2 = getInt32Memory0()[retptr / 4 + 2];
-      if (r2) {
-        throw takeObject(r1);
-      }
-      return RenderedImage.__wrap(r0);
-    } finally {
-      wasm.__wbindgen_add_to_stack_pointer(16);
-    }
-  }
-  /**
-  * Output usvg-simplified SVG string
-  * @returns {string}
-  */
-  toString() {
-    let deferred1_0;
-    let deferred1_1;
-    try {
-      const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-      wasm.resvg_toString(retptr, this.__wbg_ptr);
-      var r0 = getInt32Memory0()[retptr / 4 + 0];
-      var r1 = getInt32Memory0()[retptr / 4 + 1];
-      deferred1_0 = r0;
-      deferred1_1 = r1;
-      return getStringFromWasm0(r0, r1);
-    } finally {
-      wasm.__wbindgen_add_to_stack_pointer(16);
-      wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
-    }
-  }
-  /**
-  * Calculate a maximum bounding box of all visible elements in this SVG.
-  *
-  * Note: path bounding box are approx values.
-  * @returns {BBox | undefined}
-  */
-  innerBBox() {
-    const ret = wasm.resvg_innerBBox(this.__wbg_ptr);
-    return ret === 0 ? void 0 : BBox.__wrap(ret);
-  }
-  /**
-  * Calculate a maximum bounding box of all visible elements in this SVG.
-  * This will first apply transform.
-  * Similar to `SVGGraphicsElement.getBBox()` DOM API.
-  * @returns {BBox | undefined}
-  */
-  getBBox() {
-    const ret = wasm.resvg_getBBox(this.__wbg_ptr);
-    return ret === 0 ? void 0 : BBox.__wrap(ret);
-  }
-  /**
-  * Use a given `BBox` to crop the svg. Currently this method simply changes
-  * the viewbox/size of the svg and do not move the elements for simplicity
-  * @param {BBox} bbox
-  */
-  cropByBBox(bbox) {
-    _assertClass(bbox, BBox);
-    wasm.resvg_cropByBBox(this.__wbg_ptr, bbox.__wbg_ptr);
-  }
-  /**
-  * @returns {Array<any>}
-  */
-  imagesToResolve() {
-    try {
-      const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-      wasm.resvg_imagesToResolve(retptr, this.__wbg_ptr);
-      var r0 = getInt32Memory0()[retptr / 4 + 0];
-      var r1 = getInt32Memory0()[retptr / 4 + 1];
-      var r2 = getInt32Memory0()[retptr / 4 + 2];
-      if (r2) {
-        throw takeObject(r1);
-      }
-      return takeObject(r0);
-    } finally {
-      wasm.__wbindgen_add_to_stack_pointer(16);
-    }
-  }
-  /**
-  * @param {string} href
-  * @param {Uint8Array} buffer
-  */
-  resolveImage(href, buffer) {
-    try {
-      const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-      const ptr0 = passStringToWasm0(href, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-      const len0 = WASM_VECTOR_LEN;
-      wasm.resvg_resolveImage(retptr, this.__wbg_ptr, ptr0, len0, addHeapObject(buffer));
-      var r0 = getInt32Memory0()[retptr / 4 + 0];
-      var r1 = getInt32Memory0()[retptr / 4 + 1];
-      if (r1) {
-        throw takeObject(r0);
-      }
-    } finally {
-      wasm.__wbindgen_add_to_stack_pointer(16);
-    }
-  }
-};
-async function __wbg_load(module, imports) {
-  if (typeof Response === "function" && module instanceof Response) {
-    if (typeof WebAssembly.instantiateStreaming === "function") {
-      try {
-        return await WebAssembly.instantiateStreaming(module, imports);
-      } catch (e) {
-        if (module.headers.get("Content-Type") != "application/wasm") {
-          console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", e);
-        } else {
-          throw e;
-        }
-      }
-    }
-    const bytes = await module.arrayBuffer();
-    return await WebAssembly.instantiate(bytes, imports);
-  } else {
-    const instance = await WebAssembly.instantiate(module, imports);
-    if (instance instanceof WebAssembly.Instance) {
-      return { instance, module };
-    } else {
-      return instance;
-    }
-  }
-}
-__name(__wbg_load, "__wbg_load");
-function __wbg_get_imports() {
-  const imports = {};
-  imports.wbg = {};
-  imports.wbg.__wbg_new_28c511d9baebfa89 = function(arg0, arg1) {
-    const ret = new Error(getStringFromWasm0(arg0, arg1));
-    return addHeapObject(ret);
-  };
-  imports.wbg.__wbindgen_memory = function() {
-    const ret = wasm.memory;
-    return addHeapObject(ret);
-  };
-  imports.wbg.__wbg_buffer_12d079cc21e14bdb = function(arg0) {
-    const ret = getObject(arg0).buffer;
-    return addHeapObject(ret);
-  };
-  imports.wbg.__wbg_newwithbyteoffsetandlength_aa4a17c33a06e5cb = function(arg0, arg1, arg2) {
-    const ret = new Uint8Array(getObject(arg0), arg1 >>> 0, arg2 >>> 0);
-    return addHeapObject(ret);
-  };
-  imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
-    takeObject(arg0);
-  };
-  imports.wbg.__wbg_new_63b92bc8671ed464 = function(arg0) {
-    const ret = new Uint8Array(getObject(arg0));
-    return addHeapObject(ret);
-  };
-  imports.wbg.__wbg_values_839f3396d5aac002 = function(arg0) {
-    const ret = getObject(arg0).values();
-    return addHeapObject(ret);
-  };
-  imports.wbg.__wbg_next_196c84450b364254 = function() {
-    return handleError(function(arg0) {
-      const ret = getObject(arg0).next();
-      return addHeapObject(ret);
-    }, arguments);
-  };
-  imports.wbg.__wbg_done_298b57d23c0fc80c = function(arg0) {
-    const ret = getObject(arg0).done;
-    return ret;
-  };
-  imports.wbg.__wbg_value_d93c65011f51a456 = function(arg0) {
-    const ret = getObject(arg0).value;
-    return addHeapObject(ret);
-  };
-  imports.wbg.__wbg_instanceof_Uint8Array_2b3bbecd033d19f6 = function(arg0) {
-    let result;
-    try {
-      result = getObject(arg0) instanceof Uint8Array;
-    } catch (_) {
-      result = false;
-    }
-    const ret = result;
-    return ret;
-  };
-  imports.wbg.__wbindgen_string_get = function(arg0, arg1) {
-    const obj = getObject(arg1);
-    const ret = typeof obj === "string" ? obj : void 0;
-    var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    var len1 = WASM_VECTOR_LEN;
-    getInt32Memory0()[arg0 / 4 + 1] = len1;
-    getInt32Memory0()[arg0 / 4 + 0] = ptr1;
-  };
-  imports.wbg.__wbg_new_16b304a2cfa7ff4a = function() {
-    const ret = new Array();
-    return addHeapObject(ret);
-  };
-  imports.wbg.__wbindgen_string_new = function(arg0, arg1) {
-    const ret = getStringFromWasm0(arg0, arg1);
-    return addHeapObject(ret);
-  };
-  imports.wbg.__wbg_push_a5b05aedc7234f9f = function(arg0, arg1) {
-    const ret = getObject(arg0).push(getObject(arg1));
-    return ret;
-  };
-  imports.wbg.__wbg_length_c20a40f15020d68a = function(arg0) {
-    const ret = getObject(arg0).length;
-    return ret;
-  };
-  imports.wbg.__wbg_set_a47bac70306a19a7 = function(arg0, arg1, arg2) {
-    getObject(arg0).set(getObject(arg1), arg2 >>> 0);
-  };
-  imports.wbg.__wbindgen_throw = function(arg0, arg1) {
-    throw new Error(getStringFromWasm0(arg0, arg1));
-  };
-  return imports;
-}
-__name(__wbg_get_imports, "__wbg_get_imports");
-function __wbg_init_memory(imports, maybe_memory) {
-}
-__name(__wbg_init_memory, "__wbg_init_memory");
-function __wbg_finalize_init(instance, module) {
-  wasm = instance.exports;
-  __wbg_init.__wbindgen_wasm_module = module;
-  cachedInt32Memory0 = null;
-  cachedUint8Memory0 = null;
-  return wasm;
-}
-__name(__wbg_finalize_init, "__wbg_finalize_init");
-async function __wbg_init(input) {
-  if (wasm !== void 0)
-    return wasm;
-  if (typeof input === "undefined") {
-    input = new URL("index_bg.wasm", void 0);
-  }
-  const imports = __wbg_get_imports();
-  if (typeof input === "string" || typeof Request === "function" && input instanceof Request || typeof URL === "function" && input instanceof URL) {
-    input = fetch(input);
-  }
-  __wbg_init_memory(imports);
-  const { instance, module } = await __wbg_load(await input, imports);
-  return __wbg_finalize_init(instance, module);
-}
-__name(__wbg_init, "__wbg_init");
-var dist_default = __wbg_init;
-var initialized = false;
-var initWasm = /* @__PURE__ */ __name(async (module_or_path) => {
-  if (initialized) {
-    throw new Error("Already initialized. The `initWasm()` function can be used only once.");
-  }
-  await dist_default(await module_or_path);
-  initialized = true;
-}, "initWasm");
-var Resvg2 = class extends Resvg {
-  static {
-    __name(this, "Resvg2");
-  }
-  /**
-   * @param {Uint8Array | string} svg
-   * @param {ResvgRenderOptions | undefined} options
-   */
-  constructor(svg, options) {
-    if (!initialized)
-      throw new Error("Wasm has not been initialized. Call `initWasm()` function.");
-    const font = options?.font;
-    if (!!font && isCustomFontsOptions(font)) {
-      const serializableOptions = {
-        ...options,
-        font: {
-          ...font,
-          fontBuffers: void 0
-        }
-      };
-      super(svg, JSON.stringify(serializableOptions), font.fontBuffers);
-    } else {
-      super(svg, JSON.stringify(options));
-    }
-  }
-};
-function isCustomFontsOptions(value) {
-  return Object.prototype.hasOwnProperty.call(value, "fontBuffers");
-}
-__name(isCustomFontsOptions, "isCustomFontsOptions");
 
 // node_modules/zod/v4/classic/external.js
 var external_exports = {};
@@ -37174,8 +36374,169 @@ authApp.post("/password/reset/confirm", async (c) => {
 });
 var routes_default = authApp;
 
+// src/api-keys/types.ts
+var KV_KEYS = {
+  /** APIキー情報: apikey:id:{keyId} */
+  apiKeyById: /* @__PURE__ */ __name((keyId) => `apikey:id:${keyId}`, "apiKeyById"),
+  /** ハッシュからキーIDへのインデックス: apikey:hash:{keyHash} */
+  apiKeyByHash: /* @__PURE__ */ __name((keyHash) => `apikey:hash:${keyHash}`, "apiKeyByHash"),
+  /** ユーザーのAPIキーID一覧: user:apikeys:{userId} */
+  userApiKeys: /* @__PURE__ */ __name((userId) => `user:apikeys:${userId}`, "userApiKeys")
+};
+var MAX_API_KEYS_PER_USER = 10;
+var API_KEY_LENGTH = 64;
+
+// src/api-keys/utils.ts
+function generateApiKey() {
+  const bytes = crypto.getRandomValues(new Uint8Array(API_KEY_LENGTH / 2));
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+__name(generateApiKey, "generateApiKey");
+async function hashApiKey(apiKey) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(apiKey);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+__name(hashApiKey, "hashApiKey");
+function createKeyPreview(apiKey) {
+  if (apiKey.length < 8) {
+    return "****";
+  }
+  const visiblePart = apiKey.slice(-8);
+  return `****...${visiblePart}`;
+}
+__name(createKeyPreview, "createKeyPreview");
+
+// src/api-keys/api-key.ts
+async function createApiKey(kv, userId, name) {
+  const existingKeys = await getUserApiKeys(kv, userId);
+  if (existingKeys.length >= MAX_API_KEYS_PER_USER) {
+    throw new Error(
+      `API\u30AD\u30FC\u306E\u4F5C\u6210\u4E0A\u9650\uFF08${MAX_API_KEYS_PER_USER}\u500B\uFF09\u306B\u9054\u3057\u3066\u3044\u307E\u3059`
+    );
+  }
+  const apiKey = generateApiKey();
+  const keyHash = await hashApiKey(apiKey);
+  const keyId = crypto.randomUUID();
+  const now = Date.now();
+  const apiKeyData = {
+    keyId,
+    userId,
+    name,
+    keyHash,
+    createdAt: now,
+    isActive: true
+  };
+  const userKeysData = await kv.get(KV_KEYS.userApiKeys(userId));
+  const userKeys = userKeysData ? JSON.parse(userKeysData) : [];
+  userKeys.push(keyId);
+  await Promise.all([
+    kv.put(KV_KEYS.apiKeyById(keyId), JSON.stringify(apiKeyData)),
+    kv.put(KV_KEYS.apiKeyByHash(keyHash), keyId),
+    kv.put(KV_KEYS.userApiKeys(userId), JSON.stringify(userKeys))
+  ]);
+  return {
+    ...toApiKeyInfo(apiKeyData, apiKey),
+    apiKey
+    // 生成されたAPIキー（この時だけ返す）
+  };
+}
+__name(createApiKey, "createApiKey");
+async function getApiKeyById(kv, keyId) {
+  const data = await kv.get(KV_KEYS.apiKeyById(keyId));
+  if (!data) {
+    return null;
+  }
+  return JSON.parse(data);
+}
+__name(getApiKeyById, "getApiKeyById");
+async function validateApiKey(kv, apiKey) {
+  const keyHash = await hashApiKey(apiKey);
+  const keyId = await kv.get(KV_KEYS.apiKeyByHash(keyHash));
+  if (!keyId) {
+    return null;
+  }
+  const apiKeyData = await getApiKeyById(kv, keyId);
+  if (!apiKeyData || !apiKeyData.isActive) {
+    return null;
+  }
+  return apiKeyData;
+}
+__name(validateApiKey, "validateApiKey");
+async function getUserApiKeys(kv, userId) {
+  const userKeysData = await kv.get(KV_KEYS.userApiKeys(userId));
+  if (!userKeysData) {
+    return [];
+  }
+  const keyIds = JSON.parse(userKeysData);
+  const keys = await Promise.all(
+    keyIds.map((keyId) => getApiKeyById(kv, keyId))
+  );
+  return keys.filter((key) => key !== null).map((key) => toApiKeyInfo(key));
+}
+__name(getUserApiKeys, "getUserApiKeys");
+async function updateApiKey(kv, keyId, updates) {
+  const apiKeyData = await getApiKeyById(kv, keyId);
+  if (!apiKeyData) {
+    return null;
+  }
+  if (updates.name !== void 0) {
+    apiKeyData.name = updates.name;
+  }
+  if (updates.isActive !== void 0) {
+    apiKeyData.isActive = updates.isActive;
+  }
+  await kv.put(KV_KEYS.apiKeyById(keyId), JSON.stringify(apiKeyData));
+  return toApiKeyInfo(apiKeyData);
+}
+__name(updateApiKey, "updateApiKey");
+async function deleteApiKey(kv, keyId) {
+  const apiKeyData = await getApiKeyById(kv, keyId);
+  if (!apiKeyData) {
+    return false;
+  }
+  const userKeysData = await kv.get(KV_KEYS.userApiKeys(apiKeyData.userId));
+  if (userKeysData) {
+    const userKeys = JSON.parse(userKeysData);
+    const updatedKeys = userKeys.filter((id) => id !== keyId);
+    await kv.put(
+      KV_KEYS.userApiKeys(apiKeyData.userId),
+      JSON.stringify(updatedKeys)
+    );
+  }
+  await Promise.all([
+    kv.delete(KV_KEYS.apiKeyById(keyId)),
+    kv.delete(KV_KEYS.apiKeyByHash(apiKeyData.keyHash))
+  ]);
+  return true;
+}
+__name(deleteApiKey, "deleteApiKey");
+async function recordLastUsed(kv, keyId) {
+  const apiKeyData = await getApiKeyById(kv, keyId);
+  if (!apiKeyData) {
+    return;
+  }
+  apiKeyData.lastUsedAt = Date.now();
+  await kv.put(KV_KEYS.apiKeyById(keyId), JSON.stringify(apiKeyData));
+}
+__name(recordLastUsed, "recordLastUsed");
+function toApiKeyInfo(apiKey, originalKey) {
+  return {
+    keyId: apiKey.keyId,
+    userId: apiKey.userId,
+    name: apiKey.name,
+    keyPreview: originalKey ? createKeyPreview(originalKey) : "****...****",
+    // 元のキーがない場合はマスクのみ
+    createdAt: apiKey.createdAt,
+    lastUsedAt: apiKey.lastUsedAt,
+    isActive: apiKey.isActive
+  };
+}
+__name(toApiKeyInfo, "toApiKeyInfo");
+
 // src/api-keys/routes.ts
-init_api_key();
 var createApiKeySchema = external_exports.object({
   name: external_exports.string().min(1, "API\u30AD\u30FC\u540D\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044").max(100, "API\u30AD\u30FC\u540D\u306F100\u6587\u5B57\u4EE5\u5185\u3067\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044")
 });
@@ -37396,6 +36757,614 @@ apiKeysApp.delete("/:keyId", async (c) => {
   }
 });
 var routes_default2 = apiKeysApp;
+
+// node_modules/@resvg/resvg-wasm/index.mjs
+var wasm;
+var heap = new Array(128).fill(void 0);
+heap.push(void 0, null, true, false);
+var heap_next = heap.length;
+function addHeapObject(obj) {
+  if (heap_next === heap.length)
+    heap.push(heap.length + 1);
+  const idx = heap_next;
+  heap_next = heap[idx];
+  heap[idx] = obj;
+  return idx;
+}
+__name(addHeapObject, "addHeapObject");
+function getObject(idx) {
+  return heap[idx];
+}
+__name(getObject, "getObject");
+function dropObject(idx) {
+  if (idx < 132)
+    return;
+  heap[idx] = heap_next;
+  heap_next = idx;
+}
+__name(dropObject, "dropObject");
+function takeObject(idx) {
+  const ret = getObject(idx);
+  dropObject(idx);
+  return ret;
+}
+__name(takeObject, "takeObject");
+var WASM_VECTOR_LEN = 0;
+var cachedUint8Memory0 = null;
+function getUint8Memory0() {
+  if (cachedUint8Memory0 === null || cachedUint8Memory0.byteLength === 0) {
+    cachedUint8Memory0 = new Uint8Array(wasm.memory.buffer);
+  }
+  return cachedUint8Memory0;
+}
+__name(getUint8Memory0, "getUint8Memory0");
+var cachedTextEncoder = typeof TextEncoder !== "undefined" ? new TextEncoder("utf-8") : { encode: /* @__PURE__ */ __name(() => {
+  throw Error("TextEncoder not available");
+}, "encode") };
+var encodeString = typeof cachedTextEncoder.encodeInto === "function" ? function(arg, view) {
+  return cachedTextEncoder.encodeInto(arg, view);
+} : function(arg, view) {
+  const buf = cachedTextEncoder.encode(arg);
+  view.set(buf);
+  return {
+    read: arg.length,
+    written: buf.length
+  };
+};
+function passStringToWasm0(arg, malloc, realloc) {
+  if (realloc === void 0) {
+    const buf = cachedTextEncoder.encode(arg);
+    const ptr2 = malloc(buf.length, 1) >>> 0;
+    getUint8Memory0().subarray(ptr2, ptr2 + buf.length).set(buf);
+    WASM_VECTOR_LEN = buf.length;
+    return ptr2;
+  }
+  let len = arg.length;
+  let ptr = malloc(len, 1) >>> 0;
+  const mem = getUint8Memory0();
+  let offset = 0;
+  for (; offset < len; offset++) {
+    const code = arg.charCodeAt(offset);
+    if (code > 127)
+      break;
+    mem[ptr + offset] = code;
+  }
+  if (offset !== len) {
+    if (offset !== 0) {
+      arg = arg.slice(offset);
+    }
+    ptr = realloc(ptr, len, len = offset + arg.length * 3, 1) >>> 0;
+    const view = getUint8Memory0().subarray(ptr + offset, ptr + len);
+    const ret = encodeString(arg, view);
+    offset += ret.written;
+    ptr = realloc(ptr, len, offset, 1) >>> 0;
+  }
+  WASM_VECTOR_LEN = offset;
+  return ptr;
+}
+__name(passStringToWasm0, "passStringToWasm0");
+function isLikeNone(x) {
+  return x === void 0 || x === null;
+}
+__name(isLikeNone, "isLikeNone");
+var cachedInt32Memory0 = null;
+function getInt32Memory0() {
+  if (cachedInt32Memory0 === null || cachedInt32Memory0.byteLength === 0) {
+    cachedInt32Memory0 = new Int32Array(wasm.memory.buffer);
+  }
+  return cachedInt32Memory0;
+}
+__name(getInt32Memory0, "getInt32Memory0");
+var cachedTextDecoder = typeof TextDecoder !== "undefined" ? new TextDecoder("utf-8", { ignoreBOM: true, fatal: true }) : { decode: /* @__PURE__ */ __name(() => {
+  throw Error("TextDecoder not available");
+}, "decode") };
+if (typeof TextDecoder !== "undefined") {
+  cachedTextDecoder.decode();
+}
+function getStringFromWasm0(ptr, len) {
+  ptr = ptr >>> 0;
+  return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
+}
+__name(getStringFromWasm0, "getStringFromWasm0");
+function _assertClass(instance, klass) {
+  if (!(instance instanceof klass)) {
+    throw new Error(`expected instance of ${klass.name}`);
+  }
+  return instance.ptr;
+}
+__name(_assertClass, "_assertClass");
+function handleError(f, args) {
+  try {
+    return f.apply(this, args);
+  } catch (e) {
+    wasm.__wbindgen_exn_store(addHeapObject(e));
+  }
+}
+__name(handleError, "handleError");
+var BBoxFinalization = typeof FinalizationRegistry === "undefined" ? { register: /* @__PURE__ */ __name(() => {
+}, "register"), unregister: /* @__PURE__ */ __name(() => {
+}, "unregister") } : new FinalizationRegistry((ptr) => wasm.__wbg_bbox_free(ptr >>> 0));
+var BBox = class _BBox {
+  static {
+    __name(this, "_BBox");
+  }
+  static __wrap(ptr) {
+    ptr = ptr >>> 0;
+    const obj = Object.create(_BBox.prototype);
+    obj.__wbg_ptr = ptr;
+    BBoxFinalization.register(obj, obj.__wbg_ptr, obj);
+    return obj;
+  }
+  __destroy_into_raw() {
+    const ptr = this.__wbg_ptr;
+    this.__wbg_ptr = 0;
+    BBoxFinalization.unregister(this);
+    return ptr;
+  }
+  free() {
+    const ptr = this.__destroy_into_raw();
+    wasm.__wbg_bbox_free(ptr);
+  }
+  /**
+  * @returns {number}
+  */
+  get x() {
+    const ret = wasm.__wbg_get_bbox_x(this.__wbg_ptr);
+    return ret;
+  }
+  /**
+  * @param {number} arg0
+  */
+  set x(arg0) {
+    wasm.__wbg_set_bbox_x(this.__wbg_ptr, arg0);
+  }
+  /**
+  * @returns {number}
+  */
+  get y() {
+    const ret = wasm.__wbg_get_bbox_y(this.__wbg_ptr);
+    return ret;
+  }
+  /**
+  * @param {number} arg0
+  */
+  set y(arg0) {
+    wasm.__wbg_set_bbox_y(this.__wbg_ptr, arg0);
+  }
+  /**
+  * @returns {number}
+  */
+  get width() {
+    const ret = wasm.__wbg_get_bbox_width(this.__wbg_ptr);
+    return ret;
+  }
+  /**
+  * @param {number} arg0
+  */
+  set width(arg0) {
+    wasm.__wbg_set_bbox_width(this.__wbg_ptr, arg0);
+  }
+  /**
+  * @returns {number}
+  */
+  get height() {
+    const ret = wasm.__wbg_get_bbox_height(this.__wbg_ptr);
+    return ret;
+  }
+  /**
+  * @param {number} arg0
+  */
+  set height(arg0) {
+    wasm.__wbg_set_bbox_height(this.__wbg_ptr, arg0);
+  }
+};
+var RenderedImageFinalization = typeof FinalizationRegistry === "undefined" ? { register: /* @__PURE__ */ __name(() => {
+}, "register"), unregister: /* @__PURE__ */ __name(() => {
+}, "unregister") } : new FinalizationRegistry((ptr) => wasm.__wbg_renderedimage_free(ptr >>> 0));
+var RenderedImage = class _RenderedImage {
+  static {
+    __name(this, "_RenderedImage");
+  }
+  static __wrap(ptr) {
+    ptr = ptr >>> 0;
+    const obj = Object.create(_RenderedImage.prototype);
+    obj.__wbg_ptr = ptr;
+    RenderedImageFinalization.register(obj, obj.__wbg_ptr, obj);
+    return obj;
+  }
+  __destroy_into_raw() {
+    const ptr = this.__wbg_ptr;
+    this.__wbg_ptr = 0;
+    RenderedImageFinalization.unregister(this);
+    return ptr;
+  }
+  free() {
+    const ptr = this.__destroy_into_raw();
+    wasm.__wbg_renderedimage_free(ptr);
+  }
+  /**
+  * Get the PNG width
+  * @returns {number}
+  */
+  get width() {
+    const ret = wasm.renderedimage_width(this.__wbg_ptr);
+    return ret >>> 0;
+  }
+  /**
+  * Get the PNG height
+  * @returns {number}
+  */
+  get height() {
+    const ret = wasm.renderedimage_height(this.__wbg_ptr);
+    return ret >>> 0;
+  }
+  /**
+  * Write the image data to Uint8Array
+  * @returns {Uint8Array}
+  */
+  asPng() {
+    try {
+      const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+      wasm.renderedimage_asPng(retptr, this.__wbg_ptr);
+      var r0 = getInt32Memory0()[retptr / 4 + 0];
+      var r1 = getInt32Memory0()[retptr / 4 + 1];
+      var r2 = getInt32Memory0()[retptr / 4 + 2];
+      if (r2) {
+        throw takeObject(r1);
+      }
+      return takeObject(r0);
+    } finally {
+      wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+  }
+  /**
+  * Get the RGBA pixels of the image
+  * @returns {Uint8Array}
+  */
+  get pixels() {
+    const ret = wasm.renderedimage_pixels(this.__wbg_ptr);
+    return takeObject(ret);
+  }
+};
+var ResvgFinalization = typeof FinalizationRegistry === "undefined" ? { register: /* @__PURE__ */ __name(() => {
+}, "register"), unregister: /* @__PURE__ */ __name(() => {
+}, "unregister") } : new FinalizationRegistry((ptr) => wasm.__wbg_resvg_free(ptr >>> 0));
+var Resvg = class {
+  static {
+    __name(this, "Resvg");
+  }
+  __destroy_into_raw() {
+    const ptr = this.__wbg_ptr;
+    this.__wbg_ptr = 0;
+    ResvgFinalization.unregister(this);
+    return ptr;
+  }
+  free() {
+    const ptr = this.__destroy_into_raw();
+    wasm.__wbg_resvg_free(ptr);
+  }
+  /**
+  * @param {Uint8Array | string} svg
+  * @param {string | undefined} [options]
+  * @param {Array<any> | undefined} [custom_font_buffers]
+  */
+  constructor(svg, options, custom_font_buffers) {
+    try {
+      const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+      var ptr0 = isLikeNone(options) ? 0 : passStringToWasm0(options, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      var len0 = WASM_VECTOR_LEN;
+      wasm.resvg_new(retptr, addHeapObject(svg), ptr0, len0, isLikeNone(custom_font_buffers) ? 0 : addHeapObject(custom_font_buffers));
+      var r0 = getInt32Memory0()[retptr / 4 + 0];
+      var r1 = getInt32Memory0()[retptr / 4 + 1];
+      var r2 = getInt32Memory0()[retptr / 4 + 2];
+      if (r2) {
+        throw takeObject(r1);
+      }
+      this.__wbg_ptr = r0 >>> 0;
+      return this;
+    } finally {
+      wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+  }
+  /**
+  * Get the SVG width
+  * @returns {number}
+  */
+  get width() {
+    const ret = wasm.resvg_width(this.__wbg_ptr);
+    return ret;
+  }
+  /**
+  * Get the SVG height
+  * @returns {number}
+  */
+  get height() {
+    const ret = wasm.resvg_height(this.__wbg_ptr);
+    return ret;
+  }
+  /**
+  * Renders an SVG in Wasm
+  * @returns {RenderedImage}
+  */
+  render() {
+    try {
+      const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+      wasm.resvg_render(retptr, this.__wbg_ptr);
+      var r0 = getInt32Memory0()[retptr / 4 + 0];
+      var r1 = getInt32Memory0()[retptr / 4 + 1];
+      var r2 = getInt32Memory0()[retptr / 4 + 2];
+      if (r2) {
+        throw takeObject(r1);
+      }
+      return RenderedImage.__wrap(r0);
+    } finally {
+      wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+  }
+  /**
+  * Output usvg-simplified SVG string
+  * @returns {string}
+  */
+  toString() {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+      const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+      wasm.resvg_toString(retptr, this.__wbg_ptr);
+      var r0 = getInt32Memory0()[retptr / 4 + 0];
+      var r1 = getInt32Memory0()[retptr / 4 + 1];
+      deferred1_0 = r0;
+      deferred1_1 = r1;
+      return getStringFromWasm0(r0, r1);
+    } finally {
+      wasm.__wbindgen_add_to_stack_pointer(16);
+      wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+  }
+  /**
+  * Calculate a maximum bounding box of all visible elements in this SVG.
+  *
+  * Note: path bounding box are approx values.
+  * @returns {BBox | undefined}
+  */
+  innerBBox() {
+    const ret = wasm.resvg_innerBBox(this.__wbg_ptr);
+    return ret === 0 ? void 0 : BBox.__wrap(ret);
+  }
+  /**
+  * Calculate a maximum bounding box of all visible elements in this SVG.
+  * This will first apply transform.
+  * Similar to `SVGGraphicsElement.getBBox()` DOM API.
+  * @returns {BBox | undefined}
+  */
+  getBBox() {
+    const ret = wasm.resvg_getBBox(this.__wbg_ptr);
+    return ret === 0 ? void 0 : BBox.__wrap(ret);
+  }
+  /**
+  * Use a given `BBox` to crop the svg. Currently this method simply changes
+  * the viewbox/size of the svg and do not move the elements for simplicity
+  * @param {BBox} bbox
+  */
+  cropByBBox(bbox) {
+    _assertClass(bbox, BBox);
+    wasm.resvg_cropByBBox(this.__wbg_ptr, bbox.__wbg_ptr);
+  }
+  /**
+  * @returns {Array<any>}
+  */
+  imagesToResolve() {
+    try {
+      const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+      wasm.resvg_imagesToResolve(retptr, this.__wbg_ptr);
+      var r0 = getInt32Memory0()[retptr / 4 + 0];
+      var r1 = getInt32Memory0()[retptr / 4 + 1];
+      var r2 = getInt32Memory0()[retptr / 4 + 2];
+      if (r2) {
+        throw takeObject(r1);
+      }
+      return takeObject(r0);
+    } finally {
+      wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+  }
+  /**
+  * @param {string} href
+  * @param {Uint8Array} buffer
+  */
+  resolveImage(href, buffer) {
+    try {
+      const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+      const ptr0 = passStringToWasm0(href, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      const len0 = WASM_VECTOR_LEN;
+      wasm.resvg_resolveImage(retptr, this.__wbg_ptr, ptr0, len0, addHeapObject(buffer));
+      var r0 = getInt32Memory0()[retptr / 4 + 0];
+      var r1 = getInt32Memory0()[retptr / 4 + 1];
+      if (r1) {
+        throw takeObject(r0);
+      }
+    } finally {
+      wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+  }
+};
+async function __wbg_load(module, imports) {
+  if (typeof Response === "function" && module instanceof Response) {
+    if (typeof WebAssembly.instantiateStreaming === "function") {
+      try {
+        return await WebAssembly.instantiateStreaming(module, imports);
+      } catch (e) {
+        if (module.headers.get("Content-Type") != "application/wasm") {
+          console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", e);
+        } else {
+          throw e;
+        }
+      }
+    }
+    const bytes = await module.arrayBuffer();
+    return await WebAssembly.instantiate(bytes, imports);
+  } else {
+    const instance = await WebAssembly.instantiate(module, imports);
+    if (instance instanceof WebAssembly.Instance) {
+      return { instance, module };
+    } else {
+      return instance;
+    }
+  }
+}
+__name(__wbg_load, "__wbg_load");
+function __wbg_get_imports() {
+  const imports = {};
+  imports.wbg = {};
+  imports.wbg.__wbg_new_28c511d9baebfa89 = function(arg0, arg1) {
+    const ret = new Error(getStringFromWasm0(arg0, arg1));
+    return addHeapObject(ret);
+  };
+  imports.wbg.__wbindgen_memory = function() {
+    const ret = wasm.memory;
+    return addHeapObject(ret);
+  };
+  imports.wbg.__wbg_buffer_12d079cc21e14bdb = function(arg0) {
+    const ret = getObject(arg0).buffer;
+    return addHeapObject(ret);
+  };
+  imports.wbg.__wbg_newwithbyteoffsetandlength_aa4a17c33a06e5cb = function(arg0, arg1, arg2) {
+    const ret = new Uint8Array(getObject(arg0), arg1 >>> 0, arg2 >>> 0);
+    return addHeapObject(ret);
+  };
+  imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
+    takeObject(arg0);
+  };
+  imports.wbg.__wbg_new_63b92bc8671ed464 = function(arg0) {
+    const ret = new Uint8Array(getObject(arg0));
+    return addHeapObject(ret);
+  };
+  imports.wbg.__wbg_values_839f3396d5aac002 = function(arg0) {
+    const ret = getObject(arg0).values();
+    return addHeapObject(ret);
+  };
+  imports.wbg.__wbg_next_196c84450b364254 = function() {
+    return handleError(function(arg0) {
+      const ret = getObject(arg0).next();
+      return addHeapObject(ret);
+    }, arguments);
+  };
+  imports.wbg.__wbg_done_298b57d23c0fc80c = function(arg0) {
+    const ret = getObject(arg0).done;
+    return ret;
+  };
+  imports.wbg.__wbg_value_d93c65011f51a456 = function(arg0) {
+    const ret = getObject(arg0).value;
+    return addHeapObject(ret);
+  };
+  imports.wbg.__wbg_instanceof_Uint8Array_2b3bbecd033d19f6 = function(arg0) {
+    let result;
+    try {
+      result = getObject(arg0) instanceof Uint8Array;
+    } catch (_) {
+      result = false;
+    }
+    const ret = result;
+    return ret;
+  };
+  imports.wbg.__wbindgen_string_get = function(arg0, arg1) {
+    const obj = getObject(arg1);
+    const ret = typeof obj === "string" ? obj : void 0;
+    var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len1 = WASM_VECTOR_LEN;
+    getInt32Memory0()[arg0 / 4 + 1] = len1;
+    getInt32Memory0()[arg0 / 4 + 0] = ptr1;
+  };
+  imports.wbg.__wbg_new_16b304a2cfa7ff4a = function() {
+    const ret = new Array();
+    return addHeapObject(ret);
+  };
+  imports.wbg.__wbindgen_string_new = function(arg0, arg1) {
+    const ret = getStringFromWasm0(arg0, arg1);
+    return addHeapObject(ret);
+  };
+  imports.wbg.__wbg_push_a5b05aedc7234f9f = function(arg0, arg1) {
+    const ret = getObject(arg0).push(getObject(arg1));
+    return ret;
+  };
+  imports.wbg.__wbg_length_c20a40f15020d68a = function(arg0) {
+    const ret = getObject(arg0).length;
+    return ret;
+  };
+  imports.wbg.__wbg_set_a47bac70306a19a7 = function(arg0, arg1, arg2) {
+    getObject(arg0).set(getObject(arg1), arg2 >>> 0);
+  };
+  imports.wbg.__wbindgen_throw = function(arg0, arg1) {
+    throw new Error(getStringFromWasm0(arg0, arg1));
+  };
+  return imports;
+}
+__name(__wbg_get_imports, "__wbg_get_imports");
+function __wbg_init_memory(imports, maybe_memory) {
+}
+__name(__wbg_init_memory, "__wbg_init_memory");
+function __wbg_finalize_init(instance, module) {
+  wasm = instance.exports;
+  __wbg_init.__wbindgen_wasm_module = module;
+  cachedInt32Memory0 = null;
+  cachedUint8Memory0 = null;
+  return wasm;
+}
+__name(__wbg_finalize_init, "__wbg_finalize_init");
+async function __wbg_init(input) {
+  if (wasm !== void 0)
+    return wasm;
+  if (typeof input === "undefined") {
+    input = new URL("index_bg.wasm", void 0);
+  }
+  const imports = __wbg_get_imports();
+  if (typeof input === "string" || typeof Request === "function" && input instanceof Request || typeof URL === "function" && input instanceof URL) {
+    input = fetch(input);
+  }
+  __wbg_init_memory(imports);
+  const { instance, module } = await __wbg_load(await input, imports);
+  return __wbg_finalize_init(instance, module);
+}
+__name(__wbg_init, "__wbg_init");
+var dist_default = __wbg_init;
+var initialized = false;
+var initWasm = /* @__PURE__ */ __name(async (module_or_path) => {
+  if (initialized) {
+    throw new Error("Already initialized. The `initWasm()` function can be used only once.");
+  }
+  await dist_default(await module_or_path);
+  initialized = true;
+}, "initWasm");
+var Resvg2 = class extends Resvg {
+  static {
+    __name(this, "Resvg2");
+  }
+  /**
+   * @param {Uint8Array | string} svg
+   * @param {ResvgRenderOptions | undefined} options
+   */
+  constructor(svg, options) {
+    if (!initialized)
+      throw new Error("Wasm has not been initialized. Call `initWasm()` function.");
+    const font = options?.font;
+    if (!!font && isCustomFontsOptions(font)) {
+      const serializableOptions = {
+        ...options,
+        font: {
+          ...font,
+          fontBuffers: void 0
+        }
+      };
+      super(svg, JSON.stringify(serializableOptions), font.fontBuffers);
+    } else {
+      super(svg, JSON.stringify(options));
+    }
+  }
+};
+function isCustomFontsOptions(value) {
+  return Object.prototype.hasOwnProperty.call(value, "fontBuffers");
+}
+__name(isCustomFontsOptions, "isCustomFontsOptions");
 
 // src/services/wasm.ts
 import wasmModule from "./dd4dd8881e2df4e64203b5c0ae65e1648ab55207-index_bg.wasm";
@@ -53646,26 +53615,7 @@ async function templateMagazineBasic(input, env) {
 }
 __name(templateMagazineBasic, "templateMagazineBasic");
 
-// src/index.tsx
-var app = new Hono2();
-app.use("/*", cors({
-  origin: /* @__PURE__ */ __name((origin) => {
-    if (origin === "http://localhost:3000" || origin === "http://localhost:3002" || origin === "http://localhost:1033") {
-      return origin;
-    }
-    if (origin && (origin.endsWith(".img-worker-templates.pages.dev") || origin === "https://img-worker-templates.pages.dev")) {
-      return origin;
-    }
-    return null;
-  }, "origin"),
-  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "x-api-key", "Authorization"],
-  exposeHeaders: ["Content-Length"],
-  maxAge: 600,
-  credentials: true
-}));
-app.route("/auth", routes_default);
-app.route("/api-keys", routes_default2);
+// src/middleware/api-auth.ts
 async function requireApiKey(c) {
   const q = c.req.query("api_key");
   const h = c.req.header("x-api-key");
@@ -53673,11 +53623,13 @@ async function requireApiKey(c) {
   if (!provided) {
     return c.text("Unauthorized: API key required", 401);
   }
-  const { validateApiKey: validateApiKey2 } = await Promise.resolve().then(() => (init_api_key(), api_key_exports));
   try {
-    const apiKeyData = await validateApiKey2(c.env.TEMPLATES, provided);
+    const apiKeyData = await validateApiKey(c.env.TEMPLATES, provided);
     if (apiKeyData) {
       c.set("apiUserId", apiKeyData.userId);
+      recordLastUsed(c.env.TEMPLATES, apiKeyData.keyId).catch((error46) => {
+        console.error("Failed to record last used:", error46);
+      });
       return null;
     }
   } catch (error46) {
@@ -53689,12 +53641,14 @@ async function requireApiKey(c) {
   return c.text("Unauthorized: Invalid API key", 401);
 }
 __name(requireApiKey, "requireApiKey");
-app.get("/", (c) => c.text("ok"));
-app.get("/form", (c) => {
+
+// src/routes/render.ts
+var renderApp = new Hono2();
+renderApp.get("/form", (c) => {
   const { getFormHtml: getFormHtml2 } = (init_form(), __toCommonJS(form_exports));
   return c.html(getFormHtml2());
 });
-app.post("/render", async (c) => {
+renderApp.post("/render", async (c) => {
   const unauthorized = await requireApiKey(c);
   if (unauthorized) return unauthorized;
   try {
@@ -53755,7 +53709,11 @@ app.post("/render", async (c) => {
     }, 500);
   }
 });
-app.post("/images/upload", async (c) => {
+var render_default = renderApp;
+
+// src/routes/images.ts
+var imagesApp = new Hono2();
+imagesApp.post("/upload", async (c) => {
   const unauthorized = await requireApiKey(c);
   if (unauthorized) return unauthorized;
   try {
@@ -53801,7 +53759,7 @@ app.post("/images/upload", async (c) => {
     return c.json({ error: "Upload failed" }, 500);
   }
 });
-app.get("/images/*", async (c) => {
+imagesApp.get("/*", async (c) => {
   const key = c.req.path.replace("/images/", "");
   const object2 = await c.env.IMAGES.get(key);
   if (!object2) {
@@ -53815,26 +53773,30 @@ app.get("/images/*", async (c) => {
     }
   });
 });
-app.delete("/images/*", async (c) => {
+imagesApp.delete("/*", async (c) => {
   const unauthorized = await requireApiKey(c);
   if (unauthorized) return unauthorized;
   const key = c.req.path.replace("/images/", "");
   await c.env.IMAGES.delete(key);
   return c.json({ success: true });
 });
-app.get("/templates/ui", (c) => {
+var images_default = imagesApp;
+
+// src/routes/templates.ts
+var templatesApp = new Hono2();
+templatesApp.get("/ui", (c) => {
   const { getTemplatesUiHtml: getTemplatesUiHtml2 } = (init_templates_ui(), __toCommonJS(templates_ui_exports));
   return c.html(getTemplatesUiHtml2());
 });
-app.get("/templates/editor", (c) => {
+templatesApp.get("/editor", (c) => {
   const { getTemplatesEditorHtml: getTemplatesEditorHtml2 } = (init_templates_editor(), __toCommonJS(templates_editor_exports));
   return c.html(getTemplatesEditorHtml2());
 });
-app.get("/templates/editor/:id", (c) => {
+templatesApp.get("/editor/:id", (c) => {
   const id = c.req.param("id");
   return c.redirect(`/templates/editor?id=${id}`);
 });
-app.get("/templates", async (c) => {
+templatesApp.get("/", async (c) => {
   const unauthorized = await requireApiKey(c);
   if (unauthorized) return unauthorized;
   try {
@@ -53855,7 +53817,7 @@ app.get("/templates", async (c) => {
     return c.json({ error: "Failed to list templates" }, 500);
   }
 });
-app.get("/templates/:id", async (c) => {
+templatesApp.get("/:id", async (c) => {
   const unauthorized = await requireApiKey(c);
   if (unauthorized) return unauthorized;
   const id = c.req.param("id");
@@ -53863,7 +53825,7 @@ app.get("/templates/:id", async (c) => {
   if (!template) return c.json({ error: "Template not found" }, 404);
   return c.json(template);
 });
-app.post("/templates", async (c) => {
+templatesApp.post("/", async (c) => {
   const unauthorized = await requireApiKey(c);
   if (unauthorized) return unauthorized;
   const body = await c.req.json();
@@ -53878,7 +53840,7 @@ app.post("/templates", async (c) => {
   await c.env.TEMPLATES.put(`template:${id}`, JSON.stringify(template));
   return c.json(template, 201);
 });
-app.put("/templates/:id", async (c) => {
+templatesApp.put("/:id", async (c) => {
   const unauthorized = await requireApiKey(c);
   if (unauthorized) return unauthorized;
   const id = c.req.param("id");
@@ -53897,7 +53859,7 @@ app.put("/templates/:id", async (c) => {
   await c.env.TEMPLATES.put(`template:${id}`, JSON.stringify(updated));
   return c.json(updated);
 });
-app.post("/templates/thumbnail", async (c) => {
+templatesApp.post("/thumbnail", async (c) => {
   const unauthorized = await requireApiKey(c);
   if (unauthorized) return unauthorized;
   const body = await c.req.json();
@@ -53928,13 +53890,39 @@ app.post("/templates/thumbnail", async (c) => {
     return c.json({ error: "Failed to generate thumbnail" }, 500);
   }
 });
-app.delete("/templates/:id", async (c) => {
+templatesApp.delete("/:id", async (c) => {
   const unauthorized = await requireApiKey(c);
   if (unauthorized) return unauthorized;
   const id = c.req.param("id");
   await c.env.TEMPLATES.delete(`template:${id}`);
   return c.json({ success: true });
 });
+var templates_default = templatesApp;
+
+// src/index.tsx
+var app = new Hono2();
+app.use("/*", cors({
+  origin: /* @__PURE__ */ __name((origin) => {
+    if (origin === "http://localhost:3000" || origin === "http://localhost:3002" || origin === "http://localhost:1033") {
+      return origin;
+    }
+    if (origin && (origin.endsWith(".img-worker-templates.pages.dev") || origin === "https://img-worker-templates.pages.dev")) {
+      return origin;
+    }
+    return null;
+  }, "origin"),
+  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "x-api-key", "Authorization"],
+  exposeHeaders: ["Content-Length"],
+  maxAge: 600,
+  credentials: true
+}));
+app.get("/", (c) => c.text("ok"));
+app.route("/auth", routes_default);
+app.route("/api-keys", routes_default2);
+app.route("/", render_default);
+app.route("/images", images_default);
+app.route("/templates", templates_default);
 var index_default = app;
 export {
   index_default as default

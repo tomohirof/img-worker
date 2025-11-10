@@ -1,4 +1,12 @@
 /**
+ * TTFフォントファイルのモジュール宣言
+ */
+declare module '*.ttf' {
+  const content: ArrayBuffer
+  export default content
+}
+
+/**
  * Cloudflare Workers環境変数の型定義
  */
 export interface Bindings {
