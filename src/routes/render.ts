@@ -8,41 +8,9 @@ import { Resvg } from '@resvg/resvg-wasm'
 import type { Bindings, Template, RenderInput } from '../types'
 import { ensureWasmInitialized } from '../services/wasm'
 import { renderTemplateToSvg, templateMagazineBasic } from '../services/renderer.tsx'
+import { requireApiKey } from '../middleware/api-auth'
 
 const renderApp = new Hono<{ Bindings: Bindings }>()
-
-/**
- * APIキー認証（後方互換性のため環境変数もサポート）
- * Phase 3でmiddleware/auth.tsに移動予定
- */
-async function requireApiKey(c: any) {
-  const q = c.req.query('api_key')
-  const h = c.req.header('x-api-key')
-  const provided = h || q
-
-  if (!provided) {
-    return c.text('Unauthorized: API key required', 401)
-  }
-
-  // まずユーザー固有のAPIキーをチェック
-  const { validateApiKey } = await import('../api-keys/api-key')
-  try {
-    const apiKeyData = await validateApiKey(c.env.TEMPLATES, provided)
-    if (apiKeyData) {
-      c.set('apiUserId', apiKeyData.userId)
-      return null
-    }
-  } catch (error) {
-    console.error('API key validation error:', error)
-  }
-
-  // フォールバック: 環境変数のAPI_KEYと比較（後方互換性）
-  if (c.env.API_KEY && provided === c.env.API_KEY) {
-    return null
-  }
-
-  return c.text('Unauthorized: Invalid API key', 401)
-}
 
 /**
  * GET /render/form - テストフォーム（ブラウザでAPIをテスト）

@@ -57,3 +57,47 @@ export async function requireApiKeyAuth(
 export function getApiUserId(c: Context): string | undefined {
   return c.get('apiUserId');
 }
+
+/**
+ * APIキー認証（後方互換性のため環境変数もサポート）
+ *
+ * ヘッダー（x-api-key）またはクエリパラメータ（api_key）からAPIキーを取得し、
+ * ユーザー固有のAPIキーを優先して検証します。
+ * 見つからない場合は環境変数API_KEYもチェックします（後方互換性）。
+ *
+ * @returns エラーレスポンス、またはnull（認証成功）
+ */
+export async function requireApiKey(c: Context<{ Bindings: Bindings }>) {
+  const q = c.req.query('api_key')
+  const h = c.req.header('x-api-key')
+  const provided = h || q
+
+  if (!provided) {
+    return c.text('Unauthorized: API key required', 401)
+  }
+
+  // まずユーザー固有のAPIキーをチェック
+  try {
+    const apiKeyData = await validateApiKey(c.env.TEMPLATES, provided)
+    if (apiKeyData) {
+      // 有効なユーザーAPIキーが見つかった
+      c.set('apiUserId', apiKeyData.userId)
+
+      // 最終使用日時を記録（非同期で実行、エラーは無視）
+      recordLastUsed(c.env.TEMPLATES, apiKeyData.keyId).catch((error) => {
+        console.error('Failed to record last used:', error)
+      })
+
+      return null
+    }
+  } catch (error) {
+    console.error('API key validation error:', error)
+  }
+
+  // フォールバック: 環境変数のAPI_KEYと比較（後方互換性）
+  if (c.env.API_KEY && provided === c.env.API_KEY) {
+    return null
+  }
+
+  return c.text('Unauthorized: Invalid API key', 401)
+}
