@@ -5,3 +5,4 @@ test.png
 *.log
 .playwright-mcp/
 .dev.vars
+coverage/
