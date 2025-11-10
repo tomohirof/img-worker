@@ -1272,3 +1272,359 @@ npm run test:coverage # カバレッジ測定
 ---
 
 **セッション5完了。次回セッションではテスト拡張または新機能開発に取り組む準備が整っています。**
+
+---
+
+## セッション6 - 2025年11月10日（TDDユニットテスト導入完了）
+
+### 実施概要
+
+TDDアプローチでユニットテストを作成し、services層とmiddleware層のテストカバレッジを100%達成しました。
+
+### 実施内容
+
+#### 1. services/image.tsのユニットテスト作成（完了）
+
+**ファイル**: `src/services/image.test.ts`（新規作成、442行）
+**テストケース数**: 13個（全て通過 ✅）
+
+**テスト内容**:
+- **外部URLの画像取得**（4テスト）
+  - 正常ケース（PNG取得）
+  - 失敗ケース（404エラー）
+  - content-typeデフォルト（image/png）
+  - JPEG対応（image/jpeg）
+
+- **R2ストレージからの画像取得**（7テスト）
+  - R2バインディング使用（ローカルURL）
+  - 本番環境URL対応
+  - オブジェクト不存在エラー
+  - contentTypeデフォルト
+  - env未定義時の外部URL扱い
+  - env.IMAGESなし時の外部URL扱い
+
+- **エッジケース**（4テスト）
+  - 空画像データ
+  - 大きな画像（1MB）
+  - URLに特殊文字
+
+**モック戦略**:
+- `vi.fn()`でグローバルfetchをモック
+- R2バインディングを手動でモック
+- `arrayBufferToDataUrl()`は実際の実装を使用
+
+**カバレッジ**: `services/image.ts` **100%**
+
+#### 2. middleware/api-auth.tsのユニットテスト作成（完了）
+
+**ファイル**: `src/middleware/api-auth.test.ts`（新規作成、422行）
+**テストケース数**: 16個（全て通過 ✅）
+
+**テスト内容**:
+- **requireApiKey関数**（12テスト）
+  - APIキーなし（ヘッダー、クエリパラメータ両方なし）
+  - 有効なユーザーAPIキー（ヘッダー）
+  - 有効なユーザーAPIキー（クエリパラメータ）
+  - ヘッダー優先（両方ある場合）
+  - 環境変数APIキーへのフォールバック
+  - 環境変数APIキー一致（後方互換性）
+  - 環境変数APIキー不一致
+  - 環境変数未設定
+  - validateApiKeyエラー時のフォールバック
+  - recordLastUsedエラー時も認証成功
+
+- **requireApiKeyAuth関数**（4テスト）
+  - APIキーなし（401 JSON）
+  - 無効なAPIキー（401 JSON）
+  - 有効なAPIキー（next()呼び出し、userIdセット）
+  - recordLastUsedエラー時も処理継続
+
+- **getApiUserId関数**（2テスト）
+  - userIdあり
+  - userIdなし（undefined）
+
+**モック戦略**:
+- `createMockContext()`関数でHonoコンテキストを手動モック
+- `vi.mock()`で`validateApiKey`と`recordLastUsed`をモック
+- `console.error`もスパイでモック
+
+**カバレッジ**: `middleware/api-auth.ts` **100%**
+
+#### 3. テストカバレッジ測定（完了）
+
+**パッケージ追加**:
+- `@vitest/coverage-v8`をインストール（110パッケージ追加）
+
+**カバレッジ結果**:
+```
+テスト済みファイル: 100%カバレッジ達成
+- middleware/api-auth.ts: 100%
+- services/image.ts: 100%
+- utils/encoding.ts: 100%（セッション5で作成）
+
+全体カバレッジ: 7.57%
+（未テストファイルを含む全体）
+```
+
+**実行コマンド**:
+```bash
+npm run test:coverage
+```
+
+#### 4. リポジトリメンテナンス（完了）
+
+- `coverage/`ディレクトリを`.gitignore`に追加
+- 誤ってコミットしたカバレッジHTMLファイルを削除
+- リモートリポジトリにプッシュ
+
+### Gitコミット履歴
+
+1. **コミット**: `6733885`
+   - **メッセージ**: `test: services/image.tsのユニットテスト追加（13テストケース）`
+   - **内容**: image.test.ts作成、13テストケース実装
+
+2. **コミット**: `681afd2`
+   - **メッセージ**: `test: middleware/api-auth.tsのユニットテスト追加（16テストケース）`
+   - **内容**: api-auth.test.ts作成、16テストケース実装
+
+3. **コミット**: `2f5da90`
+   - **メッセージ**: `chore: カバレッジツール(@vitest/coverage-v8)を追加`
+   - **内容**: カバレッジツールインストール、package.json更新
+
+4. **コミット**: `a01477e`
+   - **メッセージ**: `chore: coverage/ディレクトリを.gitignoreに追加`
+   - **内容**: .gitignore更新、coverageファイル削除
+
+**プッシュ**: `git push origin main`（成功 ✅）
+
+### テスト実行結果
+
+```bash
+npm test
+```
+
+**結果**:
+- Test Files: **3 passed**
+- Tests: **34 passed**
+  - encoding.test.ts: 5テスト
+  - image.test.ts: 13テスト
+  - api-auth.test.ts: 16テスト
+- Duration: 147ms
+
+### 技術的な学び
+
+#### TDDアプローチ
+
+**Red-Green-Refactorサイクル**:
+1. **Red**: テストを先に書く
+2. **Green**: テストを通す（既存実装が正しかったため即座に通過）
+3. **Refactor**: コードを改善（今回はスキップ）
+
+#### モック戦略のベストプラクティス
+
+**1. fetchのモック**:
+```typescript
+global.fetch = vi.fn().mockResolvedValue({
+  ok: true,
+  arrayBuffer: async () => mockData.buffer,
+  headers: { get: () => 'image/png' }
+})
+```
+
+**2. R2バインディングのモック**:
+```typescript
+const mockEnv: Partial<Bindings> = {
+  IMAGES: {
+    get: vi.fn().mockResolvedValue(mockR2Object)
+  } as any
+}
+```
+
+**3. Honoコンテキストのモック**:
+```typescript
+function createMockContext(options: {
+  header?: Record<string, string>
+  query?: Record<string, string>
+  env?: Partial<Bindings>
+}): Context<{ Bindings: Bindings }> {
+  const contextStore = new Map<string, any>()
+  
+  return {
+    req: {
+      header: (name) => options.header?.[name] || null,
+      query: (name) => options.query?.[name] || undefined
+    },
+    env: options.env as Bindings,
+    set: (key, value) => contextStore.set(key, value),
+    get: (key) => contextStore.get(key),
+    text: (body, status) => ({ body, status, type: 'text' }),
+    json: (data, status) => ({ data, status, type: 'json' })
+  } as any
+}
+```
+
+#### Vitestの便利なコマンド
+
+```bash
+npm test                # テスト実行
+npm run test:watch      # ウォッチモード（自動再実行）
+npm run test:ui         # UIモード（ブラウザで確認）
+npm run test:coverage   # カバレッジ測定
+```
+
+### ディレクトリ構造（セッション6完了後）
+
+```
+src/
+├── index.tsx
+├── types.ts
+├── services/
+│   ├── wasm.ts
+│   ├── font.ts
+│   ├── image.ts
+│   ├── image.test.ts          ✅ 新規（13テスト、100%カバレッジ）
+│   └── renderer.tsx
+├── middleware/
+│   ├── api-auth.ts
+│   └── api-auth.test.ts       ✅ 新規（16テスト、100%カバレッジ）
+├── routes/
+│   ├── render.ts
+│   ├── images.ts
+│   └── templates.ts
+├── utils/
+│   ├── encoding.ts
+│   └── encoding.test.ts       ✅ セッション5（5テスト、100%カバレッジ）
+├── auth/
+├── api-keys/
+├── emails/
+└── html-templates/
+
+vitest.config.ts                ✅ セッション5で作成
+.gitignore                      ✅ coverage/追加
+```
+
+### 成果と改善点
+
+#### コード品質の向上
+- **テストカバレッジ**: テスト済み3ファイル全て100%達成
+- **リグレッション防止**: 今後の変更でバグを早期発見可能
+- **ドキュメント**: テストコードが関数の使用方法を示す
+
+#### 開発プロセスの改善
+- **TDD環境確立**: 今後の開発でTDDを実践可能
+- **CI/CD準備**: テストスクリプトがあるため、CI/CDパイプライン構築が容易
+
+#### 学び
+- Vitestの設定とモック戦略
+- Cloudflare Workers環境でのテスト戦略
+- 純粋関数と依存関数のテスト作成パターン
+- Honoコンテキストのモック方法
+
+### 完了済みタスク（全体サマリー）
+
+1. ✅ セキュリティ改善（ハードコードされたAPIキーの削除）
+2. ✅ コード重複の削除（base64変換ユーティリティ化）
+3. ✅ 型定義の整理（`src/types.ts`への集約）
+4. ✅ API認証の統一化（ヘッダーのみに制限）
+5. ✅ エラーハンドリングの改善（POST /render、フォント読み込み）
+6. ✅ HTMLテンプレートの外部化（src/html-templates/への分離）
+7. ✅ Phase 1: サービス層の分離（src/services/へのモジュール化）
+8. ✅ Phase 2: ルートハンドラの分離（src/routes/への分離）
+9. ✅ Phase 3: API認証ミドルウェアの統合（middleware/api-auth.ts）
+10. ✅ 本番環境へのデプロイ
+11. ✅ 型定義ファイルの統合（types.d.ts → types.ts）
+12. ✅ Vitestテストフレームワークの導入（TDD環境構築）
+13. ✅ arrayBufferToDataUrl関数のテスト作成（5テストケース）
+14. ✅ **services/image.tsのテスト作成（13テストケース、100%カバレッジ）**
+15. ✅ **middleware/api-auth.tsのテスト作成（16テストケース、100%カバレッジ）**
+16. ✅ **カバレッジツールの導入（@vitest/coverage-v8）**
+17. ✅ **リモートリポジトリへのプッシュ**
+
+### 次回セッション（セッション7）で実施すべきタスク
+
+#### 優先度: 高
+
+1. **services/font.tsのユニットテスト作成**
+   - `ensureFontsLoaded()`関数のテスト
+   - フォント読み込みロジックのテスト
+   - Google Fonts fetchのモック
+   - キャッシュ機能のテスト
+   - エラーハンドリングのテスト
+
+2. **services/wasm.tsのユニットテスト作成**
+   - `ensureWasmInitialized()`関数のテスト
+   - 初回初期化のテスト
+   - 2回目以降のキャッシュ動作テスト
+
+#### 優先度: 中
+
+3. **services/renderer.tsxのユニットテスト作成**
+   - `renderTemplateToSvg()`関数のテスト
+   - Satoriのモック戦略
+   - テンプレートレンダリングのテスト
+
+4. **routes層のユニットテスト作成**
+   - `routes/render.ts`: POST /renderエンドポイントのテスト
+   - `routes/images.ts`: 画像アップロード/取得/削除のテスト
+   - `routes/templates.ts`: テンプレート管理CRUDのテスト
+
+5. **テストカバレッジ目標達成**
+   - 全体カバレッジ: 50%以上を目指す
+   - 重要なビジネスロジックは80%以上
+
+#### 優先度: 低
+
+6. **E2Eテストの導入検討**
+   - Playwrightを使用したエンドツーエンドテスト
+   - 主要エンドポイント（/render, /templates）のテスト
+   - 画像生成フローの統合テスト
+
+7. **CI/CDパイプラインでのテスト自動化**
+   - GitHub Actionsワークフロー作成
+   - プルリクエスト時の自動テスト実行
+   - カバレッジレポートの自動生成
+
+8. **新機能の開発**（ユーザー要望に応じて）
+   - テンプレートの拡張
+   - UIの改善
+   - パフォーマンス最適化
+
+### セッション終了時のステータス
+
+- **最新コミット**: `a01477e` (chore: coverage/ディレクトリを.gitignoreに追加)
+- **ブランチ**: main
+- **リモートとの同期**: ✅ 同期済み（プッシュ完了）
+- **テストステータス**: ✅ 34/34テスト通過
+- **カバレッジ**: テスト済みファイル100%
+- **ビルドステータス**: ✅ 成功
+- **本番環境**: https://ogp-worker.tomohirof.workers.dev（正常動作中）
+
+### 次回セッション開始時の確認事項
+
+1. **Git状態の確認**
+   ```bash
+   git log --oneline -5
+   git status
+   ```
+   - 最新コミット: `a01477e`
+   - リモートと同期済み
+
+2. **テスト動作確認**
+   ```bash
+   npm test
+   ```
+   - 34/34テストが通過することを確認
+
+3. **カバレッジ確認**
+   ```bash
+   npm run test:coverage
+   ```
+   - テスト済み3ファイル100%を確認
+
+4. **次のテスト対象の決定**
+   - `services/font.ts`から始めることを推奨
+   - または`services/wasm.ts`（よりシンプル）
+
+---
+
+**セッション6完了。TDDによるユニットテスト導入が成功し、テスト済みファイルは全て100%カバレッジを達成しました。次のセッションでは追加のテスト作成に取り組む準備が整っています。**
