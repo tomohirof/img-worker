@@ -1,5 +1,5 @@
 {
-  "/templates/[id]/edit/page": "app/templates/[id]/edit/page.js",
+  "/templates/[id]/edit/page": "static/webpack/app/templates/[id]/edit/page.48f52945e7c79b77.hot-update.js",
   "/templates/page": "app/templates/page.js",
   "/templates/new/page": "app/templates/new/page.js",
   "/dashboard/page": "app/dashboard/page.js",
